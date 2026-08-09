@@ -242,6 +242,7 @@ a{color:inherit;}
 }
 .macro-editor-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:10px;}
 @media (max-width:520px){ .macro-editor-grid{grid-template-columns:1fr;} }
+.day-type-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(160px,1fr)); gap:12px; margin-top:10px;}
 .macro-editor-preview{font-size:13px; color:var(--ink-dim); margin:10px 0 0; font-weight:600;}
 .macro-editor-actions{display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;}
 .dot{width:12px; height:12px; border-radius:3px; flex-shrink:0;}
@@ -293,6 +294,20 @@ a{color:inherit;}
 .muscle-tag{display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600;}
 .muscle-tag .dot{width:9px; height:9px; border-radius:2px;}
 .exo-desc{font-size:11.5px; color:var(--ink-dim); margin-top:2px;}
+.exo-current-name{font-size:13px; font-weight:600; margin-bottom:4px; color:var(--ink);}
+.exo-edit-select{
+  width:100%; font-size:12.5px; padding:6px 26px 6px 8px; border:1.5px solid #D9D2BC; border-radius:6px;
+  background:#fff; min-height:34px; margin-bottom:4px; color:var(--ink);
+  background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6"><path d="M0 0l5 6 5-6z" fill="%236E7568"/></svg>');
+  background-repeat:no-repeat; background-position:right 9px center;
+}
+.exo-edit-input{
+  width:100%; font-size:12.5px; padding:6px 6px; border:1.5px solid #D9D2BC; border-radius:6px;
+  background:#fff; min-height:34px; color:var(--ink); text-align:center;
+}
+.exo-edit-select:focus, .exo-edit-input:focus{outline:2px solid var(--accent); border-color:var(--accent);}
+.exo-row-overridden{background:rgba(227,167,59,0.14);}
+.exo-overridden-tag{display:inline-block; margin-top:3px; font-size:10.5px; font-weight:700; color:#8A6A1B;}
 
 /* ---------- suivi ---------- */
 .entry-form{display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:12px; align-items:end;}
@@ -1055,6 +1070,7 @@ function recipeCardHtml(recipe, targetKcal, targetProtein){
 }
 
 let recipeSeed = 0;
+let trainingSeed = 0;
 
 function renderNutrition(profile, plan){
   const container = document.getElementById('nutritionContent');
@@ -1261,6 +1277,71 @@ const EXO_DB = {
   ]
 };
 
+/* ---- Base d'exercices dédiée au Circuit training (style Hyrox) ----
+   Mouvements fonctionnels/endurance inspirés des stations Hyrox : sled,
+   ski-erg, rowing, wall balls, farmer's carry, burpees, fentes chargées. */
+const EXO_HYROX = {
+  jambes: [
+    {n:'Sled Push', d:"Poussez le traîneau chargé sur une distance donnée, pas courts et puissants, buste penché."},
+    {n:'Fentes avant sac lesté (Sandbag Lunges)', d:"Sac de sable sur les épaules, enchaînez les fentes marchées sur la distance."},
+    {n:'Wall Balls', d:"Squat puis lancez le ballon lesté contre le mur à la cible, réceptionnez et enchaînez."},
+    {n:'Burpees Broad Jump', d:"Burpee complet suivi d'un saut en longueur, enchaînez sur la distance."}
+  ],
+  dos: [
+    {n:'Sled Pull', d:"Tirez le traîneau vers vous à la corde, pas en arrière, dos gainé."},
+    {n:'Rowing machine (Rameur)', d:"Sur rameur, poussez avec les jambes puis tirez la poignée vers le buste, enchaînement fluide."},
+    {n:'SkiErg', d:"Debout face à la machine, tirez les poignées vers le bas en engageant le gainage et les dorsaux."},
+    {n:"Farmer's Carry", d:"Un kettlebell ou haltère lourd dans chaque main, marchez sur la distance, gainage serré."}
+  ],
+  pecs: [
+    {n:'Wall Balls', d:"Squat puis lancez le ballon lesté contre le mur à la cible, réceptionnez et enchaînez."},
+    {n:'Sled Push', d:"Poussez le traîneau chargé sur une distance donnée, pas courts et puissants, buste penché."},
+    {n:'Pompes rapides', d:"Enchaînez les pompes en rythme soutenu, corps gainé, pour l'endurance haut du corps."}
+  ],
+  epaules: [
+    {n:"Farmer's Carry", d:"Un kettlebell ou haltère lourd dans chaque main, marchez sur la distance, gainage serré."},
+    {n:'SkiErg', d:"Debout face à la machine, tirez les poignées vers le bas en engageant le gainage et les dorsaux."},
+    {n:'Wall Balls', d:"Squat puis lancez le ballon lesté contre le mur à la cible, réceptionnez et enchaînez."}
+  ],
+  sangle: [
+    {n:'Burpees Broad Jump', d:"Burpee complet suivi d'un saut en longueur, enchaînez sur la distance."},
+    {n:'Fentes avant sac lesté (Sandbag Lunges)', d:"Sac de sable sur les épaules, enchaînez les fentes marchées sur la distance."},
+    {n:'Rowing machine (Rameur)', d:"Sur rameur, poussez avec les jambes puis tirez la poignée vers le buste, enchaînement fluide."}
+  ]
+};
+
+/* ---- Base d'exercices dédiée au Circuit force (style CrossFit) ----
+   Mouvements haltérophilie/gymnastique typiques d'un WOD CrossFit :
+   thrusters, kettlebell swings, box jumps, tractions, snatch, etc. */
+const EXO_CROSSFIT = {
+  jambes: [
+    {n:'Box Jumps', d:"Sautez pieds joints sur la box, extension complète des hanches en haut, redescendez contrôlé."},
+    {n:'Thrusters', d:"Squat avant puis extension explosive pour pousser la barre au-dessus de la tête."},
+    {n:'Kettlebell Swings', d:"Bascule de hanches pour projeter le kettlebell à hauteur d'épaule/tête, dos gainé."},
+    {n:'Wall Balls', d:"Squat puis lancez le ballon lesté contre le mur à la cible, réceptionnez et enchaînez."}
+  ],
+  dos: [
+    {n:'Pull-ups (tractions kipping)', d:"Suspendu à la barre, utilisez l'impulsion du corps pour enchaîner les tractions en rythme."},
+    {n:'Deadlift (CrossFit)', d:"Soulevé de terre technique, charge modérée à lourde, cadence soutenue selon le WOD."},
+    {n:'Rope Climb', d:"Grimpez à la corde en utilisant bras et jambes, redescendez contrôlé."}
+  ],
+  pecs: [
+    {n:'Push Press', d:"Légère flexion de jambes puis poussez la barre au-dessus de la tête avec l'élan des hanches."},
+    {n:'Ring Dips', d:"En appui sur anneaux, descendez les coudes puis repoussez le corps vers le haut."},
+    {n:'Thrusters', d:"Squat avant puis extension explosive pour pousser la barre au-dessus de la tête."}
+  ],
+  bras: [
+    {n:'Muscle-ups', d:"Traction explosive à la barre ou aux anneaux enchaînée avec un passage en appui dips."},
+    {n:'Ring Dips', d:"En appui sur anneaux, descendez les coudes puis repoussez le corps vers le haut."},
+    {n:'Kettlebell Swings', d:"Bascule de hanches pour projeter le kettlebell à hauteur d'épaule/tête, dos gainé."}
+  ],
+  sangle: [
+    {n:'Toes-to-Bar', d:"Suspendu à la barre, montez les pieds toucher la barre en gainant tout le corps."},
+    {n:'Double-Unders (corde à sauter)', d:"Corde à sauter avec deux passages sous les pieds par saut, rythme soutenu."},
+    {n:'Kettlebell Swings', d:"Bascule de hanches pour projeter le kettlebell à hauteur d'épaule/tête, dos gainé."}
+  ]
+};
+
 function repsForGoal(objectif){
   if(objectif === 'perte') return {reps:'15-20', rest:'45-60 s'};
   if(objectif === 'prise') return {reps:'8-12', rest:'75-120 s'};
@@ -1270,6 +1351,66 @@ function setsForLevel(niveau){
   if(niveau === 'debutant') return 3;
   if(niveau === 'avance') return 5;
   return 4;
+}
+
+/* ---- Focus de séance « forçable » par jour ----
+   En plus du split recommandé automatiquement, l'utilisateur peut imposer
+   pour un jour donné un type de séance parmi : haut du corps, bas du corps,
+   full body, circuit training (endurance) ou circuit force (charge lourde
+   en enchaînement). Chaque type définit les groupes musculaires travaillés
+   et, pour les circuits, un schéma reps/repos et une note explicative dédiés. */
+const DAY_TYPES = {
+  haut:             {label:'Haut du corps', groups:['pecs','dos','epaules','bras']},
+  bas:              {label:'Bas du corps', groups:['jambes','sangle']},
+  full:             {label:'Full Body', groups:['jambes','pecs','dos','sangle']},
+  circuit_training: {label:'Circuit training', groups:['jambes','pecs','dos','epaules','sangle']},
+  circuit_force:    {label:'Circuit force', groups:['jambes','dos','pecs','bras']}
+};
+
+function dayTypeOptionsHtml(current){
+  const opts = [
+    ['', 'Auto (split recommandé)'],
+    ['haut', DAY_TYPES.haut.label],
+    ['bas', DAY_TYPES.bas.label],
+    ['full', DAY_TYPES.full.label],
+    ['circuit_training', DAY_TYPES.circuit_training.label],
+    ['circuit_force', DAY_TYPES.circuit_force.label]
+  ];
+  return opts.map(([val,label])=> `<option value="${val}" ${current === val ? 'selected' : ''}>${escapeHtml(label)}</option>`).join('');
+}
+
+function muscleOptionsHtml(forcedGroup){
+  let html = `<option value="">Automatique</option>`;
+  Object.keys(GROUP_META).forEach(g=>{
+    html += `<option value="${g}" ${forcedGroup === g ? 'selected' : ''}>${escapeHtml(GROUP_META[g].label)}</option>`;
+  });
+  return html;
+}
+
+function trainingParamsForType(typeId, profile){
+  const {reps, rest} = repsForGoal(profile.objectif);
+  const sets = setsForLevel(profile.niveau);
+  if(typeId === 'circuit_training'){
+    return {
+      reps:'15-20', rest:'20-30 s entre exercices', sets: Math.max(2, sets - 1), circuit:true,
+      circuitNote:"🔁 Format circuit : enchaîne les exercices ci-dessous les uns après les autres avec un temps de repos très court entre chaque, puis récupère 90 s à 2 min avant de relancer un nouveau tour (vise le nombre de tours indiqué par les séries)."
+    };
+  }
+  if(typeId === 'circuit_force'){
+    return {
+      reps:'6-10', rest:'30-45 s entre exercices', sets: Math.max(3, sets), circuit:true,
+      circuitNote:"🔁 Format circuit force : charge plus lourde qu'un circuit classique. Enchaîne les exercices en gardant une technique stricte, récupère 2 à 3 min entre chaque tour complet."
+    };
+  }
+  return {reps, rest, sets, circuit:false, circuitNote:''};
+}
+
+function countForGroup(g, groups, typeId){
+  if(typeId === 'circuit_training' || typeId === 'circuit_force'){
+    return 1; // une station par groupe pour enchaîner en circuit
+  }
+  const mainGroups = ['jambes','pecs','dos'];
+  return mainGroups.includes(g) ? (groups.length <= 2 ? 3 : 2) : 1;
 }
 
 function buildSplit(days){
@@ -1303,32 +1444,82 @@ function buildSplit(days){
   return [PPL[0], PPL[1], PPL[2], PPL[0], PPL[1], PPL[2]];
 }
 
-function pickExosForGroup(group, count, offset){
-  const list = EXO_DB[group] || [];
+function exoListForGroup(group, typeId){
+  /* Circuit training → base Hyrox ; Circuit force → base CrossFit ; sinon base musculation classique.
+     Repli sur EXO_DB si le groupe n'a pas d'entrée dédiée dans la base circuit. */
+  if(typeId === 'circuit_training') return EXO_HYROX[group] || EXO_DB[group] || [];
+  if(typeId === 'circuit_force') return EXO_CROSSFIT[group] || EXO_DB[group] || [];
+  return EXO_DB[group] || [];
+}
+
+function pickExosForGroup(group, count, offset, typeId){
+  const list = exoListForGroup(group, typeId);
   const out = [];
   for(let i=0; i<count; i++){
-    out.push(list[(offset + i) % list.length]);
+    out.push(list[(offset + trainingSeed + i) % list.length]);
   }
   return out;
 }
 
 function generateTrainingPlan(profile){
   const days = parseInt(profile.jours, 10);
-  const split = buildSplit(days);
-  const {reps, rest} = repsForGoal(profile.objectif);
-  const sets = setsForLevel(profile.niveau);
+  const baseSplit = buildSplit(days);
+  const overrides = Array.isArray(profile.trainingOverride) ? profile.trainingOverride : [];
+  const exoOverrides = (profile.exerciseOverride && typeof profile.exerciseOverride === 'object') ? profile.exerciseOverride : {};
 
-  return split.map((day, dayIdx)=>{
+  return baseSplit.map((day, dayIdx)=>{
+    const forcedType = overrides[dayIdx];
+    let groups = day.groups;
+    let name = day.name;
+    let typeId = null;
+    if(forcedType && DAY_TYPES[forcedType]){
+      typeId = forcedType;
+      groups = DAY_TYPES[forcedType].groups;
+      name = `Jour ${String.fromCharCode(65 + dayIdx)} — ${DAY_TYPES[forcedType].label}`;
+    }
+    const {reps, rest, sets, circuit, circuitNote} = trainingParamsForType(typeId, profile);
     const exercises = [];
-    day.groups.forEach((g, gi)=>{
-      const mainGroups = ['jambes','pecs','dos'];
-      const count = mainGroups.includes(g) ? (day.groups.length <= 2 ? 3 : 2) : 1;
-      const picked = pickExosForGroup(g, count, dayIdx + gi);
+    let exoIdx = 0;
+    groups.forEach((g, gi)=>{
+      const count = countForGroup(g, groups, typeId);
+      const picked = pickExosForGroup(g, count, dayIdx + gi, typeId);
       picked.forEach(exo=>{
-        exercises.push({group:g, name:exo.n, desc:exo.d, sets, reps, rest});
+        /* Réglages forcés par l'utilisateur pour cet exercice précis : muscle ciblé,
+           exo choisi (parmi la base correspondant au focus + au muscle), séries, reps, repos. */
+        const ov = exoOverrides[`${dayIdx}_${exoIdx}`] || null;
+        const effectiveGroup = (ov && ov.group && GROUP_META[ov.group]) ? ov.group : g;
+        let finalName, finalDesc;
+        if(effectiveGroup !== g){
+          const groupList = exoListForGroup(effectiveGroup, typeId);
+          const found = (ov && ov.exo) ? groupList.find(x=> x.n === ov.exo) : null;
+          if(found){
+            finalName = found.n; finalDesc = found.d;
+          } else {
+            const autoPick = pickExosForGroup(effectiveGroup, 1, dayIdx + exoIdx, typeId)[0];
+            finalName = autoPick ? autoPick.n : exo.n;
+            finalDesc = autoPick ? autoPick.d : exo.d;
+          }
+        } else {
+          finalName = exo.n; finalDesc = exo.d;
+          if(ov && ov.exo){
+            const found = exoListForGroup(g, typeId).find(x=> x.n === ov.exo);
+            if(found){ finalName = found.n; finalDesc = found.d; }
+          }
+        }
+        exercises.push({
+          group: effectiveGroup, exoIndex:exoIdx, typeId,
+          name: finalName, desc: finalDesc,
+          sets: (ov && ov.sets) ? ov.sets : sets,
+          reps: (ov && ov.reps) ? ov.reps : reps,
+          rest: (ov && ov.rest) ? ov.rest : rest,
+          autoName: exo.n, autoGroup: g, autoSets: sets, autoReps: reps, autoRest: rest,
+          groupOverridden: !!(ov && ov.group),
+          overridden: !!ov
+        });
+        exoIdx++;
       });
     });
-    return {name: day.name, groups: day.groups, exercises};
+    return {name, groups, exercises, circuit, circuitNote, forcedType: typeId};
   });
 }
 
@@ -1382,27 +1573,42 @@ function renderTraining(profile){
     return;
   }
   const days = generateTrainingPlan(profile);
-  const {reps, rest} = repsForGoal(profile.objectif);
+  const {reps} = repsForGoal(profile.objectif);
   const niveauLabel = {debutant:'Débutant', intermediaire:'Intermédiaire', avance:'Avancé'}[profile.niveau];
   const objLabel = {perte:'Perte de poids', prise:'Prise de masse', recomposition:'Recomposition (léger déficit)', maintien:'Maintien'}[profile.objectif];
+  const overrides = Array.isArray(profile.trainingOverride) ? profile.trainingOverride : [];
+  const hasOverride = overrides.some(v => v);
+  const exoOverridesMap = (profile.exerciseOverride && typeof profile.exerciseOverride === 'object') ? profile.exerciseOverride : {};
+  const hasExoOverride = Object.keys(exoOverridesMap).length > 0;
 
   let daysHtml = '';
-  days.forEach(day=>{
-    const rows = day.exercises.map(e=>`
-      <tr>
+  days.forEach((day, dayIdx)=>{
+    const dayRest = day.exercises[0] ? day.exercises[0].rest : '';
+    const rows = day.exercises.map(e=>{
+      const list = exoListForGroup(e.group, e.typeId);
+      const exoOptions = `<option value="">Automatique (rotation)</option>` +
+        list.map(x=> `<option value="${escapeHtml(x.n)}" ${e.overridden && e.name === x.n ? 'selected' : ''}>${escapeHtml(x.n)}</option>`).join('');
+      return `
+      <tr class="${e.overridden ? 'exo-row-overridden' : ''}">
         <td>
-          <div>${e.name}</div>
+          <div class="exo-current-name">${e.name}</div>
+          <select class="exo-edit-select" data-field="exo" data-day-index="${dayIdx}" data-exo-index="${e.exoIndex}" data-default="">${exoOptions}</select>
           <div class="exo-desc">${e.desc}</div>
+          ${e.overridden ? `<span class="exo-overridden-tag">🔒 Réglages forcés</span>` : ''}
         </td>
-        <td><span class="muscle-tag"><span class="dot" style="background:${GROUP_META[e.group].color};"></span>${GROUP_META[e.group].label}</span></td>
-        <td>${e.sets}</td>
-        <td>${e.reps}</td>
-        <td>${e.rest}</td>
-      </tr>`).join('');
+        <td>
+          <div class="muscle-tag" style="margin-bottom:4px;"><span class="dot" style="background:${GROUP_META[e.group].color};"></span>${GROUP_META[e.group].label}</div>
+          <select class="exo-edit-select" data-field="group" data-day-index="${dayIdx}" data-exo-index="${e.exoIndex}" data-default="${e.autoGroup}" data-type-id="${e.typeId || ''}">${muscleOptionsHtml(e.groupOverridden ? e.group : '')}</select>
+        </td>
+        <td><input type="number" min="1" max="12" class="exo-edit-input" data-field="sets" data-day-index="${dayIdx}" data-exo-index="${e.exoIndex}" data-default="${e.autoSets}" value="${e.sets}"></td>
+        <td><input type="text" class="exo-edit-input" data-field="reps" data-day-index="${dayIdx}" data-exo-index="${e.exoIndex}" data-default="${escapeHtml(e.autoReps)}" value="${escapeHtml(e.reps)}"></td>
+        <td><input type="text" class="exo-edit-input" data-field="rest" data-day-index="${dayIdx}" data-exo-index="${e.exoIndex}" data-default="${escapeHtml(e.autoRest)}" value="${escapeHtml(e.rest)}"></td>
+      </tr>`;
+    }).join('');
     daysHtml += `
       <div class="day-card">
         <h3>${day.name}</h3>
-        <div class="day-sub">${day.exercises.length} exercices · repos entre séries ${rest}</div>
+        <div class="day-sub">${day.exercises.length} exercices · repos ${dayRest}</div>
         <div class="day-body">
           <div class="silhouette-box">${bodySVG(day.groups)}</div>
           <table class="exo-table">
@@ -1410,6 +1616,7 @@ function renderTraining(profile){
             <tbody>${rows}</tbody>
           </table>
         </div>
+        ${day.circuit ? `<p class="recipe-adjust" style="margin-top:10px;">${day.circuitNote}</p>` : ''}
       </div>`;
   });
 
@@ -1418,6 +1625,23 @@ function renderTraining(profile){
     : profile.objectif === 'recomposition'
     ? `<div class="ok-box">🏃 Ajoute 15 à 20 min de cardio léger à modéré (marche, vélo) 2 fois par semaine pour creuser légèrement le déficit sans nuire à la récupération musculaire.</div>`
     : '';
+
+  const dayTypeEditorHtml = `
+    <div class="macro-editor" id="dayTypeEditor">
+      <h3 class="meal-grid-title" style="margin-bottom:2px;">Forcer le focus d'une séance</h3>
+      <p class="sub" style="margin-top:2px;">Remplace le split recommandé pour un jour donné par un focus précis : haut du corps, bas du corps, full body, circuit training ou circuit force.</p>
+      <div class="day-type-grid">
+        ${days.map((day, i)=> `
+          <div class="field">
+            <label for="daytype_${i}">Jour ${i+1}</label>
+            <select id="daytype_${i}" data-day-index="${i}">${dayTypeOptionsHtml(overrides[i] || '')}</select>
+          </div>`).join('')}
+      </div>
+      <div class="macro-editor-actions">
+        <button type="button" class="btn btn-accent" id="applyDayTypeBtn">Appliquer ce focus</button>
+        ${hasOverride ? `<button type="button" class="btn btn-ghost btn-sm" id="resetDayTypeBtn" style="border-color:#D9D2BC; color:var(--ink);">↩️ Revenir au split automatique</button>` : ''}
+      </div>
+    </div>`;
 
   container.innerHTML = `
     <div class="sheet">
@@ -1434,10 +1658,138 @@ function renderTraining(profile){
       <div class="silhouette-legend">
         ${Object.keys(GROUP_META).map(g=>`<span class="chip"><span class="dot" style="width:8px;height:8px;border-radius:2px;background:${GROUP_META[g].color};display:inline-block;"></span>${GROUP_META[g].label}</span>`).join('')}
       </div>
+
+      ${dayTypeEditorHtml}
+
+      <div class="meal-grid-head">
+        <h3 class="meal-grid-title">Détail des séances</h3>
+        <button type="button" class="btn btn-ghost btn-sm" id="shuffleTrainingBtn" style="border-color:#D9D2BC; color:var(--ink);">🔄 Nouvelles suggestions</button>
+      </div>
       ${daysHtml}
+      <div class="macro-editor-actions" style="margin-top:14px;">
+        <button type="button" class="btn btn-accent" id="applyExoOverrideBtn">💾 Enregistrer mes réglages d'exercices</button>
+        ${hasExoOverride ? `<button type="button" class="btn btn-ghost btn-sm" id="resetExoOverrideBtn" style="border-color:#D9D2BC; color:var(--ink);">↩️ Réinitialiser les réglages d'exercices</button>` : ''}
+      </div>
       <div class="ok-box" style="margin-top:16px;">💡 Échauffe-toi 5 à 10 min (cardio léger + mobilité) avant chaque séance, et termine par quelques étirements pour la récupération.</div>
     </div>
   `;
+
+  const shuffleTrainingBtn = document.getElementById('shuffleTrainingBtn');
+  if(shuffleTrainingBtn){
+    shuffleTrainingBtn.addEventListener('click', ()=>{
+      trainingSeed += 1;
+      renderTraining(profile);
+    });
+  }
+
+  document.querySelectorAll('.exo-edit-select[data-field="group"]').forEach(groupSel=>{
+    groupSel.addEventListener('change', ()=>{
+      const dayIdx = groupSel.dataset.dayIndex, exoIdx = groupSel.dataset.exoIndex;
+      const typeId = groupSel.dataset.typeId || null;
+      const forcedGroup = groupSel.value;
+      const displayGroup = forcedGroup || groupSel.dataset.default;
+      const tagEl = groupSel.closest('td').querySelector('.muscle-tag');
+      if(tagEl && GROUP_META[displayGroup]){
+        tagEl.innerHTML = `<span class="dot" style="background:${GROUP_META[displayGroup].color};"></span>${GROUP_META[displayGroup].label}`;
+      }
+      const exoSel = document.querySelector(`.exo-edit-select[data-field="exo"][data-day-index="${dayIdx}"][data-exo-index="${exoIdx}"]`);
+      if(exoSel){
+        const list = exoListForGroup(displayGroup, typeId);
+        exoSel.innerHTML = `<option value="">Automatique (rotation)</option>` +
+          list.map(x=> `<option value="${escapeHtml(x.n)}">${escapeHtml(x.n)}</option>`).join('');
+      }
+    });
+  });
+
+  const applyDayTypeBtn = document.getElementById('applyDayTypeBtn');
+  if(applyDayTypeBtn){
+    applyDayTypeBtn.addEventListener('click', async ()=>{
+      const selects = document.querySelectorAll('#dayTypeEditor select[data-day-index]');
+      const newOverrides = [];
+      selects.forEach(sel=>{ newOverrides[parseInt(sel.dataset.dayIndex, 10)] = sel.value || null; });
+
+      /* Si le focus d'un jour change, les réglages d'exercices forcés pour ce
+         jour ne correspondent plus forcément aux bons groupes/exercices : on les efface. */
+      const prevOverrides = Array.isArray(profile.trainingOverride) ? profile.trainingOverride : [];
+      const exoOv = (profile.exerciseOverride && typeof profile.exerciseOverride === 'object') ? {...profile.exerciseOverride} : {};
+      newOverrides.forEach((val, idx)=>{
+        if((prevOverrides[idx] || null) !== (val || null)){
+          Object.keys(exoOv).forEach(key=>{ if(key.startsWith(`${idx}_`)) delete exoOv[key]; });
+        }
+      });
+      profile.exerciseOverride = Object.keys(exoOv).length ? exoOv : undefined;
+      if(!profile.exerciseOverride) delete profile.exerciseOverride;
+
+      profile.trainingOverride = newOverrides.some(v=> v) ? newOverrides : undefined;
+      if(!profile.trainingOverride) delete profile.trainingOverride;
+      const saved = await saveProfile(profile);
+      state.profile = profile;
+      renderTraining(profile);
+      showToast(saved ? 'Focus de séance appliqué ✅' : 'Focus appliqué, mais la sauvegarde a échoué ⚠️');
+    });
+  }
+
+  const resetDayTypeBtn = document.getElementById('resetDayTypeBtn');
+  if(resetDayTypeBtn){
+    resetDayTypeBtn.addEventListener('click', async ()=>{
+      delete profile.trainingOverride;
+      await saveProfile(profile);
+      state.profile = profile;
+      renderTraining(profile);
+      showToast('Retour au split automatique ✅');
+    });
+  }
+
+  const applyExoOverrideBtn = document.getElementById('applyExoOverrideBtn');
+  if(applyExoOverrideBtn){
+    applyExoOverrideBtn.addEventListener('click', async ()=>{
+      const newOverrides = {};
+      const setField = (key, field, value)=>{
+        newOverrides[key] = newOverrides[key] || {};
+        newOverrides[key][field] = value;
+      };
+      document.querySelectorAll('.exo-edit-select[data-field="exo"]').forEach(sel=>{
+        const key = `${sel.dataset.dayIndex}_${sel.dataset.exoIndex}`;
+        if(sel.value) setField(key, 'exo', sel.value);
+      });
+      document.querySelectorAll('.exo-edit-select[data-field="group"]').forEach(sel=>{
+        const key = `${sel.dataset.dayIndex}_${sel.dataset.exoIndex}`;
+        if(sel.value && sel.value !== sel.dataset.default) setField(key, 'group', sel.value);
+      });
+      document.querySelectorAll('.exo-edit-input[data-field="sets"]').forEach(inp=>{
+        const key = `${inp.dataset.dayIndex}_${inp.dataset.exoIndex}`;
+        const val = parseInt(inp.value, 10);
+        if(val && String(val) !== inp.dataset.default) setField(key, 'sets', val);
+      });
+      document.querySelectorAll('.exo-edit-input[data-field="reps"]').forEach(inp=>{
+        const key = `${inp.dataset.dayIndex}_${inp.dataset.exoIndex}`;
+        const val = inp.value.trim();
+        if(val && val !== inp.dataset.default) setField(key, 'reps', val);
+      });
+      document.querySelectorAll('.exo-edit-input[data-field="rest"]').forEach(inp=>{
+        const key = `${inp.dataset.dayIndex}_${inp.dataset.exoIndex}`;
+        const val = inp.value.trim();
+        if(val && val !== inp.dataset.default) setField(key, 'rest', val);
+      });
+      profile.exerciseOverride = Object.keys(newOverrides).length ? newOverrides : undefined;
+      if(!profile.exerciseOverride) delete profile.exerciseOverride;
+      const saved = await saveProfile(profile);
+      state.profile = profile;
+      renderTraining(profile);
+      showToast(saved ? "Réglages d'exercices enregistrés ✅" : "Réglages enregistrés, mais la sauvegarde a échoué ⚠️");
+    });
+  }
+
+  const resetExoOverrideBtn = document.getElementById('resetExoOverrideBtn');
+  if(resetExoOverrideBtn){
+    resetExoOverrideBtn.addEventListener('click', async ()=>{
+      delete profile.exerciseOverride;
+      await saveProfile(profile);
+      state.profile = profile;
+      renderTraining(profile);
+      showToast("Réglages d'exercices réinitialisés ✅");
+    });
+  }
 }
 
 /* =========================================================================
@@ -1709,6 +2061,7 @@ async function handleProfileSubmit(evt){
       ...data
     };
     recipeSeed = 0;
+    trainingSeed = 0;
     const saved = await saveProfile(profile);
     state.currentId = profile.id;
     state.profile = profile;
@@ -1929,6 +2282,7 @@ function buildTrainingPrintableHTML(profile){
         <thead><tr style="background:#eee;"><th style="text-align:left;padding:4px;">Exercice</th><th style="text-align:left;padding:4px;">Muscle</th><th style="padding:4px;">Séries</th><th style="padding:4px;">Reps</th><th style="padding:4px;">Repos</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
+      ${day.circuit ? `<p style="margin:6px 0 0;font-size:11px;color:#7A3A28;">${day.circuitNote}</p>` : ''}
       </div>`;
   }).join('');
 
