@@ -422,7 +422,8 @@ a{color:inherit;}
               <select id="f_objectif">
                 <option value="perte">Perte de poids / sèche</option>
                 <option value="prise">Prise de masse</option>
-                <option value="maintien">Maintien / recomposition</option>
+                <option value="recomposition">Recomposition (léger déficit calorique)</option>
+                <option value="maintien">Maintien</option>
               </select>
             </div>
             <div class="field" id="wrap_poidscible">
@@ -433,7 +434,7 @@ a{color:inherit;}
               <label for="f_duree">Durée de l'objectif (semaines)</label>
               <input type="number" id="f_duree" inputmode="numeric" min="2" max="104" placeholder="Ex : 12" value="12">
             </div>
-            <p class="hint">Le poids visé n'est utile que pour une perte ou une prise de poids — laisse vide en maintien.</p>
+            <p class="hint">Le poids visé n'est utile que pour une perte, une prise ou une recomposition — laisse vide en maintien.</p>
 
             <div class="field allergene-field">
               <label for="f_allergene_search">Allergènes à éviter (optionnel)</label>
@@ -752,13 +753,14 @@ function calcPlan(p){
   let calTarget;
   if(p.objectif === 'perte') calTarget = tdee * 0.80;
   else if(p.objectif === 'prise') calTarget = tdee * 1.12;
+  else if(p.objectif === 'recomposition') calTarget = tdee * 0.92; // léger déficit calorique
   else calTarget = tdee;
 
   const floor = p.sexe === 'H' ? 1500 : 1200;
   const wasFloored = calTarget < floor;
   calTarget = Math.max(calTarget, floor);
 
-  const proteinPerKg = p.objectif === 'perte' ? 2.2 : (p.objectif === 'prise' ? 1.8 : 2.0);
+  const proteinPerKg = (p.objectif === 'perte' || p.objectif === 'recomposition') ? 2.2 : (p.objectif === 'prise' ? 1.8 : 2.0);
   let proteinG = proteinPerKg * p.poids;
   let fatG = 0.9 * p.poids;
   let proteinCal = proteinG * 4;
@@ -791,7 +793,7 @@ function calcPlan(p){
 
   // timeline
   let weeklyRate = null, rateWarning = null, weeksNeeded = null;
-  if((p.objectif === 'perte' || p.objectif === 'prise') && p.poidscible){
+  if((p.objectif === 'perte' || p.objectif === 'prise' || p.objectif === 'recomposition') && p.poidscible){
     const delta = p.poidscible - p.poids; // negative for perte
     const duree = p.duree || 12;
     weeklyRate = delta / duree;
@@ -870,57 +872,57 @@ function normalizeAllergenText(s){
 /* ---- RECETTES : vraies recettes avec ingrédients et étapes ---- */
 const RECIPES = {
   petitdej: [
-    {t:'Porridge avoine, banane & beurre de cacahuète', kcal:460, p:18, c:64, f:15, prep:8, objectifs:['prise','maintien'],
+    {t:'Porridge avoine, banane & beurre de cacahuète', kcal:460, p:18, c:64, f:15, prep:8, objectifs:['prise','maintien','recomposition'],
      allergenes:['gluten','lait','arachide'],
      ing:['50 g de flocons d\'avoine','250 ml de lait (ou boisson végétale)','1 banane','1 c. à s. de beurre de cacahuète','1 pincée de cannelle'],
      steps:['Faites chauffer le lait dans une casserole, ajoutez les flocons d\'avoine.','Laissez cuire 5 min à feu doux en remuant.','Versez dans un bol, ajoutez la banane écrasée.','Terminez avec le beurre de cacahuète et la cannelle.']},
-    {t:'Omelette légère, épinards & pain complet', kcal:320, p:24, c:16, f:18, prep:10, objectifs:['perte','maintien'],
+    {t:'Omelette légère, épinards & pain complet', kcal:320, p:24, c:16, f:18, prep:10, objectifs:['perte','maintien','recomposition'],
      allergenes:['oeuf','gluten'],
      ing:['3 œufs','1 poignée d\'épinards frais','1 tranche de pain complet','sel, poivre','1 filet d\'huile d\'olive'],
      steps:['Battez les œufs avec sel et poivre.','Faites revenir les épinards 2 min dans une poêle huilée.','Ajoutez les œufs battus, cuisez à feu doux jusqu\'à prise.','Servez avec la tranche de pain complet.']},
-    {t:'Skyr, fruits rouges & granola', kcal:320, p:22, c:45, f:6, prep:5, objectifs:['perte','maintien','prise'],
+    {t:'Skyr, fruits rouges & granola', kcal:320, p:22, c:45, f:6, prep:5, objectifs:['perte','maintien','prise','recomposition'],
      allergenes:['lait','gluten'],
      ing:['200 g de skyr ou fromage blanc','1 poignée de fruits rouges (frais ou surgelés)','30 g de granola ou flocons d\'avoine grillés','1 filet de miel (optionnel)'],
      steps:['Versez le skyr dans un bol.','Ajoutez les fruits rouges.','Parsemez de granola et d\'un filet de miel.']}
   ],
   dejeuner: [
-    {t:'Poulet grillé, riz complet & brocolis', kcal:520, p:55, c:51, f:11, prep:25, objectifs:['perte','maintien','prise'],
+    {t:'Poulet grillé, riz complet & brocolis', kcal:520, p:55, c:51, f:11, prep:25, objectifs:['perte','maintien','prise','recomposition'],
      allergenes:[],
      ing:['150 g de blanc de poulet','60 g de riz complet (poids cru)','150 g de brocolis','1 c. à c. d\'huile d\'olive','ail, citron, sel, poivre'],
      steps:['Faites cuire le riz complet selon les instructions du paquet.','Faites mariner le poulet avec ail, citron, sel et poivre.','Grillez le poulet 5-6 min de chaque côté.','Cuisez les brocolis à la vapeur 8 min.','Assemblez le tout avec un filet d\'huile d\'olive.']},
-    {t:'Bœuf haché 5%, pâtes complètes & sauce tomate maison', kcal:590, p:48, c:60, f:18, prep:25, objectifs:['prise','maintien'],
+    {t:'Bœuf haché 5%, pâtes complètes & sauce tomate maison', kcal:590, p:48, c:60, f:18, prep:25, objectifs:['prise','maintien','recomposition'],
      allergenes:['gluten'],
      ing:['150 g de bœuf haché 5% MG','70 g de pâtes complètes (poids cru)','1 boîte de tomates concassées','1 oignon','basilic frais','1 c. à c. d\'huile d\'olive'],
      steps:['Faites revenir l\'oignon émincé dans l\'huile d\'olive.','Ajoutez le bœuf haché et faites-le dorer.','Versez les tomates concassées, laissez mijoter 12 min.','Faites cuire les pâtes, mélangez avec la sauce et le basilic.']},
-    {t:'Salade de poulet, quinoa & légumes croquants', kcal:430, p:42, c:38, f:12, prep:20, objectifs:['perte'],
+    {t:'Salade de poulet, quinoa & légumes croquants', kcal:430, p:42, c:38, f:12, prep:20, objectifs:['perte','recomposition'],
      allergenes:['lait'],
      ing:['120 g de blanc de poulet cuit', '50 g de quinoa (poids cru)','tomates cerises','1/2 concombre','30 g de feta légère','vinaigrette au citron'],
      steps:['Faites cuire le quinoa puis laissez-le refroidir.','Coupez le poulet, les tomates et le concombre.','Mélangez tous les ingrédients dans un saladier.','Ajoutez la feta émiettée et la vinaigrette au citron.']}
   ],
   diner: [
-    {t:'Bowl de saumon, patate douce & épinards', kcal:580, p:36, c:45, f:28, prep:25, objectifs:['prise','maintien'],
+    {t:'Bowl de saumon, patate douce & épinards', kcal:580, p:36, c:45, f:28, prep:25, objectifs:['prise','maintien','recomposition'],
      allergenes:['poisson'],
      ing:['150 g de pavé de saumon','200 g de patate douce','1 poignée d\'épinards frais','1/2 avocat','jus de citron, sel, poivre'],
      steps:['Épluchez et coupez la patate douce en cubes, faites-la rôtir au four 20 min (200°C).','Faites cuire le saumon à la poêle 4 min de chaque côté.','Disposez les épinards, la patate douce et le saumon dans un bol.','Ajoutez l\'avocat et un filet de citron.']},
-    {t:'Tofu sauté, riz & légumes croquants', kcal:460, p:26, c:60, f:13, prep:20, objectifs:['perte','maintien'],
+    {t:'Tofu sauté, riz & légumes croquants', kcal:460, p:26, c:60, f:13, prep:20, objectifs:['perte','maintien','recomposition'],
      allergenes:['soja'],
      ing:['150 g de tofu ferme','60 g de riz (poids cru)','1 poivron','1 courgette','sauce soja, gingembre frais'],
      steps:['Coupez le tofu en dés et faites-le dorer à la poêle.','Ajoutez le poivron et la courgette émincés, faites sauter 5-6 min.','Assaisonnez avec sauce soja et gingembre râpé.','Servez sur un lit de riz cuit.']},
-    {t:'Soupe de légumes & œufs pochés', kcal:270, p:16, c:26, f:11, prep:20, objectifs:['perte'],
+    {t:'Soupe de légumes & œufs pochés', kcal:270, p:16, c:26, f:11, prep:20, objectifs:['perte','recomposition'],
      allergenes:['oeuf'],
      ing:['courgette, carotte, poireau au choix','1 bouillon de légumes','2 œufs','persil frais'],
      steps:['Faites revenir les légumes coupés en morceaux puis couvrez de bouillon.','Laissez mijoter 15 min jusqu\'à tendreté.','Pochez les œufs 3 min dans une eau frémissante.','Servez la soupe avec l\'œuf poché et le persil.']}
   ],
   collation: [
-    {t:'Shaker protéiné & amandes', kcal:210, p:27, c:5, f:9, prep:3, objectifs:['prise','maintien'],
+    {t:'Shaker protéiné & amandes', kcal:210, p:27, c:5, f:9, prep:3, objectifs:['prise','maintien','recomposition'],
      allergenes:['lait','fruits_a_coque'],
      ing:['1 dose de whey protéine','200 ml d\'eau ou de lait','15 g d\'amandes'],
      steps:['Mélangez la whey avec l\'eau ou le lait au shaker.','Dégustez avec les amandes.']},
-    {t:'Yaourt grec & fruit frais', kcal:160, p:13, c:20, f:3, prep:2, objectifs:['perte'],
+    {t:'Yaourt grec & fruit frais', kcal:160, p:13, c:20, f:3, prep:2, objectifs:['perte','recomposition'],
      allergenes:['lait'],
      ing:['150 g de yaourt grec','1 fruit de saison'],
      steps:['Coupez le fruit en morceaux.','Mélangez avec le yaourt grec.']},
-    {t:'Houmous, bâtonnets de légumes & galette de riz', kcal:200, p:6, c:21, f:10, prep:5, objectifs:['perte','maintien'],
+    {t:'Houmous, bâtonnets de légumes & galette de riz', kcal:200, p:6, c:21, f:10, prep:5, objectifs:['perte','maintien','recomposition'],
      allergenes:['sesame','celeri'],
      ing:['3 c. à s. de houmous','carotte et céleri en bâtonnets','1 galette de riz soufflé'],
      steps:['Coupez les légumes en bâtonnets.','Trempez-les dans le houmous avec la galette de riz.']}
@@ -1094,7 +1096,8 @@ function renderNutrition(profile, plan){
   const tips = {
     perte: ["Bois 1.5 à 2L d'eau par jour, ça aide à gérer la faim.","Priorise les aliments à forte densité nutritionnelle (légumes, protéines maigres) pour rester rassasié·e avec moins de calories.","Garde 1 repas 'plaisir' par semaine pour tenir sur la durée.","Ne descends jamais sous ton métabolisme de base (BMR) trop longtemps."],
     prise: ["Répartis tes glucides autour de l'entraînement pour optimiser l'énergie et la récupération.","Vise un surplus modéré : mieux vaut prendre du muscle lentement que du gras rapidement.","Une collation protéinée avant le coucher peut aider la récupération nocturne.","Pense à la qualité des aliments même en surplus calorique."],
-    maintien: ["Ce plan sert de base de recomposition corporelle : muscle qui monte, gras qui descend, poids stable.","Ajuste les portions de ±10% selon ta faim et ton énergie sur la semaine.","La régularité compte plus que la perfection d'un seul repas."]
+    recomposition: ["Le déficit est volontairement léger : l'objectif est de perdre du gras tout en préservant (voire en gagnant) du muscle, pas de perdre du poids vite.","Les protéines sont maximisées pour limiter la fonte musculaire malgré le déficit — ne les rogne pas.","Sois patient·e : la recomposition corporelle est plus lente à voir sur la balance, fie-toi aussi aux mensurations et aux photos.","Garde une bonne intensité à l'entraînement pour envoyer le bon signal à tes muscles malgré le déficit."],
+    maintien: ["Ce plan sert à stabiliser ton poids tout en gardant une alimentation structurée.","Ajuste les portions de ±10% selon ta faim et ton énergie sur la semaine.","La régularité compte plus que la perfection d'un seul repas."]
   };
 
   container.innerHTML = `
@@ -1381,7 +1384,7 @@ function renderTraining(profile){
   const days = generateTrainingPlan(profile);
   const {reps, rest} = repsForGoal(profile.objectif);
   const niveauLabel = {debutant:'Débutant', intermediaire:'Intermédiaire', avance:'Avancé'}[profile.niveau];
-  const objLabel = {perte:'Perte de poids', prise:'Prise de masse', maintien:'Maintien / recomposition'}[profile.objectif];
+  const objLabel = {perte:'Perte de poids', prise:'Prise de masse', recomposition:'Recomposition (léger déficit)', maintien:'Maintien'}[profile.objectif];
 
   let daysHtml = '';
   days.forEach(day=>{
@@ -1412,6 +1415,8 @@ function renderTraining(profile){
 
   const cardioTip = profile.objectif === 'perte'
     ? `<div class="ok-box">🏃 Ajoute 20 à 30 min de cardio (marche rapide, vélo, rameur) 2 à 3 fois par semaine, en fin de séance ou les jours de repos, pour accélérer le déficit calorique sans épuiser les jambes.</div>`
+    : profile.objectif === 'recomposition'
+    ? `<div class="ok-box">🏃 Ajoute 15 à 20 min de cardio léger à modéré (marche, vélo) 2 fois par semaine pour creuser légèrement le déficit sans nuire à la récupération musculaire.</div>`
     : '';
 
   container.innerHTML = `
@@ -1635,7 +1640,7 @@ async function refreshProfileSelect(selectedId){
   const select = document.getElementById('profileSelect');
   const profiles = await loadAllProfiles();
   select.innerHTML = '<option value="">— Nouveau profil —</option>' +
-    profiles.map(p=> `<option value="${p.id}">${escapeHtml(p.prenom)} — ${p.objectif === 'perte' ? 'Perte' : p.objectif === 'prise' ? 'Prise' : 'Maintien'}</option>`).join('');
+    profiles.map(p=> `<option value="${p.id}">${escapeHtml(p.prenom)} — ${p.objectif === 'perte' ? 'Perte' : p.objectif === 'prise' ? 'Prise' : p.objectif === 'recomposition' ? 'Recomposition' : 'Maintien'}</option>`).join('');
   if(selectedId) select.value = selectedId;
 }
 
@@ -1854,7 +1859,7 @@ function buildDocHeaderHtml(profile, subtitle){
 }
 
 function buildNutritionPrintableHTML(profile, plan, history){
-  const objLabel = {perte:'Perte de poids', prise:'Prise de masse', maintien:'Maintien / recomposition'}[profile.objectif];
+  const objLabel = {perte:'Perte de poids', prise:'Prise de masse', recomposition:'Recomposition (léger déficit)', maintien:'Maintien'}[profile.objectif];
   const allergenListPdf = profile.allergenes || [];
   let totalRecipeProteinPdf = 0;
   const mealsHtmlPdf = MEALS.map((m,i)=>{
