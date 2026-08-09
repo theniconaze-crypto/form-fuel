@@ -202,6 +202,15 @@ a{color:inherit;}
 .plate-label .kcal-sub{font-size:10px; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.5px;}
 .legend{display:flex; flex-direction:column; gap:10px; min-width:200px;}
 .legend-item{display:flex; align-items:center; gap:10px; font-size:13.5px;}
+
+.macro-editor{
+  margin-top:20px; padding:16px; background:var(--paper-alt);
+  border:1px dashed #D9D2BC; border-radius:10px;
+}
+.macro-editor-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:10px;}
+@media (max-width:520px){ .macro-editor-grid{grid-template-columns:1fr;} }
+.macro-editor-preview{font-size:13px; color:var(--ink-dim); margin:10px 0 0; font-weight:600;}
+.macro-editor-actions{display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;}
 .dot{width:12px; height:12px; border-radius:3px; flex-shrink:0;}
 .legend-item b{font-family:var(--font-mono);}
 .legend-item .pct{color:var(--ink-dim); font-size:12px;}
@@ -602,8 +611,27 @@ function calcPlan(p){
   if(carbsCal < 80*4){ // sécurité glucides minimum
     carbsCal = 80*4;
   }
-  const carbsG = carbsCal / 4;
-  const totalCal = proteinCal + fatCal + carbsCal;
+  let carbsG = carbsCal / 4;
+  let totalCal = proteinCal + fatCal + carbsCal;
+
+  // ---- override manuel des macros (protéines / glucides / lipides) ----
+  // Si l'utilisateur a ajusté ses macros à la main (bouton "Prendre en compte
+  // les nouvelles valeurs"), on recalcule les kcal totales à partir de ces
+  // valeurs plutôt que de la formule automatique.
+  let isManual = false;
+  let manualBelowFloor = false;
+  if(p.macroOverride && typeof p.macroOverride === 'object'){
+    const mp = Number(p.macroOverride.proteinG);
+    const mc = Number(p.macroOverride.carbsG);
+    const mf = Number(p.macroOverride.fatG);
+    if(Number.isFinite(mp) && Number.isFinite(mc) && Number.isFinite(mf) && mp >= 0 && mc >= 0 && mf >= 0 && (mp + mc + mf) > 0){
+      proteinG = mp; carbsG = mc; fatG = mf;
+      proteinCal = proteinG * 4; carbsCal = carbsG * 4; fatCal = fatG * 9;
+      totalCal = proteinCal + carbsCal + fatCal;
+      isManual = true;
+      manualBelowFloor = totalCal < floor;
+    }
+  }
 
   // timeline
   let weeklyRate = null, rateWarning = null, weeksNeeded = null;
@@ -628,7 +656,9 @@ function calcPlan(p){
     proteinPct: Math.round(proteinCal/totalCal*100),
     fatPct: Math.round(fatCal/totalCal*100),
     carbsPct: Math.round(carbsCal/totalCal*100),
-    wasFloored,
+    wasFloored: wasFloored && !isManual,
+    isManual,
+    manualBelowFloor,
     weeklyRate,
     rateWarning
   };
@@ -864,6 +894,22 @@ function renderNutrition(profile, plan){
           <div class="legend-item"><span class="dot" style="background:var(--fat);"></span> Lipides <b>${plan.fatG} g</b> <span class="pct">(${plan.fatPct}%)</span></div>
         </div>
       </div>
+
+      <div class="macro-editor">
+        <h3 class="meal-grid-title" style="margin-bottom:2px;">Ajuster les macros manuellement</h3>
+        <p class="sub" style="margin-top:2px;">Modifie protéines, glucides et lipides (en grammes) — les kcal totales et les recettes seront recalculées en conséquence.</p>
+        <div class="macro-editor-grid">
+          <div class="field"><label for="macro_protein">Protéines (g)</label><input type="number" id="macro_protein" inputmode="numeric" min="0" step="1" value="${plan.proteinG}"></div>
+          <div class="field"><label for="macro_carbs">Glucides (g)</label><input type="number" id="macro_carbs" inputmode="numeric" min="0" step="1" value="${plan.carbsG}"></div>
+          <div class="field"><label for="macro_fat">Lipides (g)</label><input type="number" id="macro_fat" inputmode="numeric" min="0" step="1" value="${plan.fatG}"></div>
+        </div>
+        <p class="macro-editor-preview" id="macroPreview"></p>
+        <div class="macro-editor-actions">
+          <button type="button" class="btn btn-accent" id="applyMacroBtn">Prendre en compte les nouvelles valeurs</button>
+          ${plan.isManual ? `<button type="button" class="btn btn-ghost btn-sm" id="resetMacroBtn" style="border-color:#D9D2BC; color:var(--ink);">↩️ Revenir au calcul automatique</button>` : ''}
+        </div>
+      </div>
+
       <div class="meal-grid-head">
         <h3 class="meal-grid-title">Recettes du jour</h3>
         <button type="button" class="btn btn-ghost btn-sm" id="shuffleRecipesBtn" style="border-color:#D9D2BC; color:var(--ink);">🔄 Nouvelles suggestions</button>
@@ -879,6 +925,53 @@ function renderNutrition(profile, plan){
     shuffleBtn.addEventListener('click', ()=>{
       recipeSeed += 1;
       renderNutrition(profile, plan);
+    });
+  }
+
+  // ---- éditeur de macros manuel ----
+  const mProtein = document.getElementById('macro_protein');
+  const mCarbs = document.getElementById('macro_carbs');
+  const mFat = document.getElementById('macro_fat');
+  const macroPreview = document.getElementById('macroPreview');
+
+  const updatePreview = ()=>{
+    const p = parseFloat(mProtein.value) || 0;
+    const c = parseFloat(mCarbs.value) || 0;
+    const f = parseFloat(mFat.value) || 0;
+    const kcal = Math.round(p*4 + c*4 + f*9);
+    macroPreview.textContent = `= ${kcal} kcal / jour avec ces valeurs`;
+  };
+  [mProtein, mCarbs, mFat].forEach(el=> el.addEventListener('input', updatePreview));
+  updatePreview();
+
+  const applyBtn = document.getElementById('applyMacroBtn');
+  applyBtn.addEventListener('click', async ()=>{
+    const p = parseFloat(mProtein.value);
+    const c = parseFloat(mCarbs.value);
+    const f = parseFloat(mFat.value);
+    if(!Number.isFinite(p) || !Number.isFinite(c) || !Number.isFinite(f) || p < 0 || c < 0 || f < 0 || (p+c+f) <= 0){
+      showToast('Merci d\'indiquer des valeurs numériques valides (≥ 0, pas toutes à zéro).');
+      return;
+    }
+    profile.macroOverride = { proteinG: p, carbsG: c, fatG: f };
+    const saved = await saveProfile(profile);
+    state.profile = profile;
+    const newPlan = calcPlan(profile);
+    renderSummary(profile, newPlan);
+    renderNutrition(profile, newPlan);
+    showToast(saved ? 'Macros personnalisées appliquées ✅' : 'Macros appliquées, mais la sauvegarde a échoué ⚠️');
+  });
+
+  const resetBtn = document.getElementById('resetMacroBtn');
+  if(resetBtn){
+    resetBtn.addEventListener('click', async ()=>{
+      delete profile.macroOverride;
+      await saveProfile(profile);
+      state.profile = profile;
+      const newPlan = calcPlan(profile);
+      renderSummary(profile, newPlan);
+      renderNutrition(profile, newPlan);
+      showToast('Retour au calcul automatique ✅');
     });
   }
 }
@@ -1291,6 +1384,12 @@ function renderSummary(profile, plan){
   if(plan.wasFloored){
     html += `<div class="warn-box">⚠️ Ton objectif calorique calculé était trop bas pour rester sûr — il a été relevé à un plancher de sécurité. Un déficit trop agressif favorise la perte musculaire et les fringales.</div>`;
   }
+  if(plan.isManual){
+    html += `<div class="ok-box">✏️ Macros personnalisées : ${plan.calTarget} kcal/jour calculées à partir de tes valeurs de protéines, glucides et lipides.</div>`;
+  }
+  if(plan.manualBelowFloor){
+    html += `<div class="warn-box">⚠️ Avec ces valeurs personnalisées, le total (${plan.calTarget} kcal) tombe sous le seuil de sécurité habituel (${profile.sexe === 'H' ? 1500 : 1200} kcal/jour). Vérifie que ce niveau te convient, idéalement avec un professionnel de santé.</div>`;
+  }
   if(plan.rateWarning){
     html += `<div class="warn-box">⚠️ ${plan.rateWarning}</div>`;
   } else if(plan.weeklyRate !== null){
@@ -1556,6 +1655,7 @@ function buildNutritionPrintableHTML(profile, plan, history){
   return buildDocHeaderHtml(profile, `Plan nutrition · Objectif : ${objLabel}`) + `
     <div style="padding:0 28px 32px;">
       <h2 style="margin-top:0;">Bilan métabolique</h2>
+      ${plan.isManual ? `<p style="font-size:12px;color:#7A3A28;margin:0 0 8px;">✏️ Macros personnalisées par l'utilisateur (kcal recalculées en conséquence).</p>` : ''}
       <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:18px;">
         <tr><td style="padding:4px;font-weight:700;">Métabolisme de base</td><td style="padding:4px;">${plan.bmr} kcal</td></tr>
         <tr><td style="padding:4px;font-weight:700;">Dépense totale (TDEE)</td><td style="padding:4px;">${plan.tdee} kcal</td></tr>
