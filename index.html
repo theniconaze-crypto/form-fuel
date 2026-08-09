@@ -294,6 +294,7 @@ a{color:inherit;}
 .muscle-tag{display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600;}
 .muscle-tag .dot{width:9px; height:9px; border-radius:2px;}
 .exo-desc{font-size:11.5px; color:var(--ink-dim); margin-top:2px;}
+.exo-alt{font-size:11.5px; color:#3D6B52; margin-top:4px; padding-top:4px; border-top:1px dashed #D9D2BC;}
 .exo-current-name{font-size:13px; font-weight:600; margin-bottom:4px; color:var(--ink);}
 .exo-edit-select{
   width:100%; font-size:12.5px; padding:6px 26px 6px 8px; border:1.5px solid #D9D2BC; border-radius:6px;
@@ -1258,45 +1259,45 @@ const GROUP_META = {
 
 const EXO_DB = {
   pecs: [
-    {n:'Développé couché barre', d:"Allongé sur banc, poussez la barre depuis la poitrine vers le haut.", minLevel:'debutant'},
-    {n:'Développé incliné haltères', d:"Sur banc incliné à 30°, poussez les haltères au-dessus des épaules.", minLevel:'debutant'},
-    {n:'Écarté poulie vis-à-vis', d:"Bras tendus, ramenez les poignées devant vous en arc de cercle.", minLevel:'intermediaire'},
-    {n:'Pompes (lestées si besoin)', d:"Position de pompe, corps gainé, descendez poitrine proche du sol.", minLevel:'debutant'},
-    {n:'Dips pectoraux', d:"Buste penché en avant sur barres parallèles, descendez contrôlé.", minLevel:'intermediaire'}
+    {n:'Développé couché barre', d:"Allongé sur banc, poussez la barre depuis la poitrine vers le haut.", minLevel:'debutant', alt:"Presse à pectoraux guidée (machine) ou développé couché au Smith machine."},
+    {n:'Développé incliné haltères', d:"Sur banc incliné à 30°, poussez les haltères au-dessus des épaules.", minLevel:'debutant', alt:"Presse à pectoraux inclinée (machine) réglée sur l'angle le plus proche de 30°."},
+    {n:'Écarté poulie vis-à-vis', d:"Bras tendus, ramenez les poignées devant vous en arc de cercle.", minLevel:'intermediaire', alt:"Peck-deck / butterfly (machine à écarté guidé)."},
+    {n:'Pompes (lestées si besoin)', d:"Position de pompe, corps gainé, descendez poitrine proche du sol.", minLevel:'debutant', alt:"Presse à pectoraux assise (machine guidée) à charge légère."},
+    {n:'Dips pectoraux', d:"Buste penché en avant sur barres parallèles, descendez contrôlé.", minLevel:'intermediaire', alt:"Dips assistés à la machine (contrepoids réglable)."}
   ],
   dos: [
-    {n:'Tractions (ou tirage vertical)', d:"Suspendu à la barre, tirez le buste vers le haut, coudes vers le bas.", minLevel:'debutant'},
-    {n:'Rowing barre buste penché', d:"Dos droit, buste penché, tirez la barre vers le nombril.", minLevel:'intermediaire'},
-    {n:'Tirage horizontal poulie basse', d:"Assis, tirez la poignée vers l'abdomen, coudes proches du corps.", minLevel:'debutant'},
-    {n:'Soulevé de terre', d:"Dos plat, poussez sur les jambes pour soulever la barre du sol.", minLevel:'intermediaire'},
-    {n:'Rowing haltère unilatéral', d:"Un genou sur banc, tirez l'haltère vers la hanche.", minLevel:'debutant'}
+    {n:'Tractions (ou tirage vertical)', d:"Suspendu à la barre, tirez le buste vers le haut, coudes vers le bas.", minLevel:'debutant', alt:"Tirage vertical à la poulie haute (machine guidée) ou tractions assistées par contrepoids."},
+    {n:'Rowing barre buste penché', d:"Dos droit, buste penché, tirez la barre vers le nombril.", minLevel:'intermediaire', alt:"Rowing à la machine assise, poitrine calée sur le support."},
+    {n:'Tirage horizontal poulie basse', d:"Assis, tirez la poignée vers l'abdomen, coudes proches du corps.", minLevel:'debutant', alt:"Rowing à la machine convergente (guidage des deux bras indépendant)."},
+    {n:'Soulevé de terre', d:"Dos plat, poussez sur les jambes pour soulever la barre du sol.", minLevel:'intermediaire', alt:"Soulevé de terre au Smith machine (guidage vertical) ou hyperextensions à la machine."},
+    {n:'Rowing haltère unilatéral', d:"Un genou sur banc, tirez l'haltère vers la hanche.", minLevel:'debutant', alt:"Rowing unilatéral à la machine (poignée individuelle réglable)."}
   ],
   jambes: [
-    {n:'Squat barre', d:"Barre sur le haut du dos, descendez hanches sous les genoux, remontez.", minLevel:'debutant'},
-    {n:'Presse à cuisses', d:"Assis sur la machine, poussez la plateforme avec les jambes.", minLevel:'debutant'},
-    {n:'Fentes marchées', d:"Grand pas en avant, descendez le genou arrière près du sol, alternez.", minLevel:'debutant'},
-    {n:'Leg curl (ischio-jambiers)', d:"Allongé ou assis, fléchissez les jambes contre la résistance.", minLevel:'debutant'},
-    {n:'Soulevé de terre jambes tendues', d:"Jambes semi-tendues, descendez la barre le long des tibias, dos plat.", minLevel:'intermediaire'},
-    {n:'Mollets debout', d:"Montez sur la pointe des pieds avec charge, contrôlez la descente.", minLevel:'debutant'}
+    {n:'Squat barre', d:"Barre sur le haut du dos, descendez hanches sous les genoux, remontez.", minLevel:'debutant', alt:"Presse à cuisses ou hack squat (machine guidée)."},
+    {n:'Presse à cuisses', d:"Assis sur la machine, poussez la plateforme avec les jambes.", minLevel:'debutant', alt:"Déjà un exercice machine — variante : hack squat (machine)."},
+    {n:'Fentes marchées', d:"Grand pas en avant, descendez le genou arrière près du sol, alternez.", minLevel:'debutant', alt:"Presse à cuisses unilatérale (machine, une jambe à la fois)."},
+    {n:'Leg curl (ischio-jambiers)', d:"Allongé ou assis, fléchissez les jambes contre la résistance.", minLevel:'debutant', alt:"Déjà un exercice machine — variante : leg curl assis au lieu d'allongé."},
+    {n:'Soulevé de terre jambes tendues', d:"Jambes semi-tendues, descendez la barre le long des tibias, dos plat.", minLevel:'intermediaire', alt:"Leg curl allongé (machine) pour isoler les ischio-jambiers en sécurité."},
+    {n:'Mollets debout', d:"Montez sur la pointe des pieds avec charge, contrôlez la descente.", minLevel:'debutant', alt:"Mollets à la presse à cuisses ou mollets assis (machine guidée)."}
   ],
   epaules: [
-    {n:'Développé militaire', d:"Debout ou assis, poussez la barre/haltères au-dessus de la tête.", minLevel:'debutant'},
-    {n:'Élévations latérales', d:"Bras légèrement fléchis, montez les haltères sur les côtés jusqu'aux épaules.", minLevel:'debutant'},
-    {n:'Élévations frontales', d:"Montez l'haltère devant vous jusqu'à hauteur d'épaule.", minLevel:'debutant'},
-    {n:'Oiseau (élévations arrière)', d:"Buste penché, montez les haltères sur les côtés pour cibler l'arrière d'épaule.", minLevel:'debutant'}
+    {n:'Développé militaire', d:"Debout ou assis, poussez la barre/haltères au-dessus de la tête.", minLevel:'debutant', alt:"Développé épaules à la machine guidée (assis, dossier calé)."},
+    {n:'Élévations latérales', d:"Bras légèrement fléchis, montez les haltères sur les côtés jusqu'aux épaules.", minLevel:'debutant', alt:"Élévations latérales à la machine (deltoïde latéral guidé)."},
+    {n:'Élévations frontales', d:"Montez l'haltère devant vous jusqu'à hauteur d'épaule.", minLevel:'debutant', alt:"Poulie basse frontale (câble guidé, poids stack) à défaut de machine dédiée."},
+    {n:'Oiseau (élévations arrière)', d:"Buste penché, montez les haltères sur les côtés pour cibler l'arrière d'épaule.", minLevel:'debutant', alt:"Reverse peck-deck / oiseau à la machine (assis, poitrine calée)."}
   ],
   bras: [
-    {n:'Curl biceps barre EZ', d:"Coudes fixes, fléchissez la barre vers les épaules.", minLevel:'debutant'},
-    {n:'Curl marteau haltères', d:"Paumes face à face, fléchissez les avant-bras.", minLevel:'debutant'},
-    {n:'Extension triceps poulie haute', d:"Coudes fixes le long du corps, poussez la corde vers le bas.", minLevel:'debutant'},
-    {n:'Dips triceps (banc)', d:"Mains sur un banc derrière vous, fléchissez les coudes puis poussez.", minLevel:'debutant'},
-    {n:'Extension triceps nuque haltère', d:"Un haltère à deux mains derrière la tête, tendez les bras vers le haut.", minLevel:'debutant'}
+    {n:'Curl biceps barre EZ', d:"Coudes fixes, fléchissez la barre vers les épaules.", minLevel:'debutant', alt:"Curl biceps au pupitre (machine guidée, coudes calés)."},
+    {n:'Curl marteau haltères', d:"Paumes face à face, fléchissez les avant-bras.", minLevel:'debutant', alt:"Curl marteau à la poulie basse avec corde (câble guidé)."},
+    {n:'Extension triceps poulie haute', d:"Coudes fixes le long du corps, poussez la corde vers le bas.", minLevel:'debutant', alt:"Déjà un exercice guidé (poulie) — variante : extension triceps à la machine assise."},
+    {n:'Dips triceps (banc)', d:"Mains sur un banc derrière vous, fléchissez les coudes puis poussez.", minLevel:'debutant', alt:"Dips assistés à la machine (contrepoids réglable)."},
+    {n:'Extension triceps nuque haltère', d:"Un haltère à deux mains derrière la tête, tendez les bras vers le haut.", minLevel:'debutant', alt:"Extension triceps à la poulie haute avec corde (câble guidé)."}
   ],
   sangle: [
-    {n:'Gainage planche', d:"Corps aligné en appui sur avant-bras et pointes de pieds, maintenez la position.", minLevel:'debutant'},
-    {n:'Relevés de jambes suspendu', d:"Suspendu à la barre, montez les jambes tendues ou fléchies vers le buste.", minLevel:'intermediaire'},
-    {n:'Crunch poulie haute', d:"À genoux face à la poulie, enroulez le buste vers le bassin.", minLevel:'debutant'},
-    {n:'Gainage latéral', d:"En appui sur un avant-bras de côté, maintenez le bassin gainé et haut.", minLevel:'debutant'}
+    {n:'Gainage planche', d:"Corps aligné en appui sur avant-bras et pointes de pieds, maintenez la position.", minLevel:'debutant', alt:"Crunch à la machine abdominale guidée (banc ou pupitre)."},
+    {n:'Relevés de jambes suspendu', d:"Suspendu à la barre, montez les jambes tendues ou fléchies vers le buste.", minLevel:'intermediaire', alt:"Crunch à la machine (banc abdos guidé) ou relevés de bassin à la chaise romaine."},
+    {n:'Crunch poulie haute', d:"À genoux face à la poulie, enroulez le buste vers le bassin.", minLevel:'debutant', alt:"Crunch à la machine abdominale assise (guidage du buste)."},
+    {n:'Gainage latéral', d:"En appui sur un avant-bras de côté, maintenez le bassin gainé et haut.", minLevel:'debutant', alt:"Rotation du buste à la machine obliques (câble ou machine guidée)."}
   ]
 };
 
@@ -1305,31 +1306,31 @@ const EXO_DB = {
    ski-erg, rowing, wall balls, farmer's carry, burpees, fentes chargées. */
 const EXO_HYROX = {
   jambes: [
-    {n:'Sled Push', d:"Poussez le traîneau chargé sur une distance donnée, pas courts et puissants, buste penché.", minLevel:'debutant'},
-    {n:'Fentes avant sac lesté (Sandbag Lunges)', d:"Sac de sable sur les épaules, enchaînez les fentes marchées sur la distance.", minLevel:'intermediaire'},
-    {n:'Wall Balls', d:"Squat puis lancez le ballon lesté contre le mur à la cible, réceptionnez et enchaînez.", minLevel:'intermediaire'},
-    {n:'Burpees Broad Jump', d:"Burpee complet suivi d'un saut en longueur, enchaînez sur la distance.", minLevel:'intermediaire'}
+    {n:'Sled Push', d:"Poussez le traîneau chargé sur une distance donnée, pas courts et puissants, buste penché.", minLevel:'debutant', alt:"Presse à cuisses (machine guidée) à tempo soutenu."},
+    {n:'Fentes avant sac lesté (Sandbag Lunges)', d:"Sac de sable sur les épaules, enchaînez les fentes marchées sur la distance.", minLevel:'intermediaire', alt:"Presse à cuisses unilatérale (machine, une jambe à la fois)."},
+    {n:'Wall Balls', d:"Squat puis lancez le ballon lesté contre le mur à la cible, réceptionnez et enchaînez.", minLevel:'intermediaire', alt:"Presse à cuisses (machine) enchaînée avec une poulie haute frontale pour le geste de poussée."},
+    {n:'Burpees Broad Jump', d:"Burpee complet suivi d'un saut en longueur, enchaînez sur la distance.", minLevel:'intermediaire', alt:"Presse à cuisses en rythme soutenu (machine) à défaut de mouvement au sol."}
   ],
   dos: [
-    {n:'Sled Pull', d:"Tirez le traîneau vers vous à la corde, pas en arrière, dos gainé.", minLevel:'debutant'},
-    {n:'Rowing machine (Rameur)', d:"Sur rameur, poussez avec les jambes puis tirez la poignée vers le buste, enchaînement fluide.", minLevel:'debutant'},
-    {n:'SkiErg', d:"Debout face à la machine, tirez les poignées vers le bas en engageant le gainage et les dorsaux.", minLevel:'debutant'},
-    {n:"Farmer's Carry", d:"Un kettlebell ou haltère lourd dans chaque main, marchez sur la distance, gainage serré.", minLevel:'debutant'}
+    {n:'Sled Pull', d:"Tirez le traîneau vers vous à la corde, pas en arrière, dos gainé.", minLevel:'debutant', alt:"Tirage horizontal à la machine convergente, cadence soutenue."},
+    {n:'Rowing machine (Rameur)', d:"Sur rameur, poussez avec les jambes puis tirez la poignée vers le buste, enchaînement fluide.", minLevel:'debutant', alt:"Déjà un appareil guidé — variante : tirage horizontal à la machine assise."},
+    {n:'SkiErg', d:"Debout face à la machine, tirez les poignées vers le bas en engageant le gainage et les dorsaux.", minLevel:'debutant', alt:"Déjà un appareil guidé — variante : tirage vertical à la poulie haute (machine)."},
+    {n:"Farmer's Carry", d:"Un kettlebell ou haltère lourd dans chaque main, marchez sur la distance, gainage serré.", minLevel:'debutant', alt:"Rowing unilatéral à la machine (poignée individuelle) en série longue."}
   ],
   pecs: [
-    {n:'Wall Balls', d:"Squat puis lancez le ballon lesté contre le mur à la cible, réceptionnez et enchaînez.", minLevel:'intermediaire'},
-    {n:'Sled Push', d:"Poussez le traîneau chargé sur une distance donnée, pas courts et puissants, buste penché.", minLevel:'debutant'},
-    {n:'Pompes rapides', d:"Enchaînez les pompes en rythme soutenu, corps gainé, pour l'endurance haut du corps.", minLevel:'debutant'}
+    {n:'Wall Balls', d:"Squat puis lancez le ballon lesté contre le mur à la cible, réceptionnez et enchaînez.", minLevel:'intermediaire', alt:"Presse à pectoraux guidée (machine) à cadence soutenue."},
+    {n:'Sled Push', d:"Poussez le traîneau chargé sur une distance donnée, pas courts et puissants, buste penché.", minLevel:'debutant', alt:"Presse à pectoraux guidée (machine) en série longue."},
+    {n:'Pompes rapides', d:"Enchaînez les pompes en rythme soutenu, corps gainé, pour l'endurance haut du corps.", minLevel:'debutant', alt:"Presse à pectoraux assise (machine) à charge légère et rythme soutenu."}
   ],
   epaules: [
-    {n:"Farmer's Carry", d:"Un kettlebell ou haltère lourd dans chaque main, marchez sur la distance, gainage serré.", minLevel:'debutant'},
-    {n:'SkiErg', d:"Debout face à la machine, tirez les poignées vers le bas en engageant le gainage et les dorsaux.", minLevel:'debutant'},
-    {n:'Wall Balls', d:"Squat puis lancez le ballon lesté contre le mur à la cible, réceptionnez et enchaînez.", minLevel:'intermediaire'}
+    {n:"Farmer's Carry", d:"Un kettlebell ou haltère lourd dans chaque main, marchez sur la distance, gainage serré.", minLevel:'debutant', alt:"Développé épaules à la machine guidée en série longue."},
+    {n:'SkiErg', d:"Debout face à la machine, tirez les poignées vers le bas en engageant le gainage et les dorsaux.", minLevel:'debutant', alt:"Déjà un appareil guidé — variante : tirage vertical à la poulie haute (machine)."},
+    {n:'Wall Balls', d:"Squat puis lancez le ballon lesté contre le mur à la cible, réceptionnez et enchaînez.", minLevel:'intermediaire', alt:"Développé épaules à la machine guidée à cadence soutenue."}
   ],
   sangle: [
-    {n:'Burpees Broad Jump', d:"Burpee complet suivi d'un saut en longueur, enchaînez sur la distance.", minLevel:'intermediaire'},
-    {n:'Fentes avant sac lesté (Sandbag Lunges)', d:"Sac de sable sur les épaules, enchaînez les fentes marchées sur la distance.", minLevel:'intermediaire'},
-    {n:'Rowing machine (Rameur)', d:"Sur rameur, poussez avec les jambes puis tirez la poignée vers le buste, enchaînement fluide.", minLevel:'debutant'}
+    {n:'Burpees Broad Jump', d:"Burpee complet suivi d'un saut en longueur, enchaînez sur la distance.", minLevel:'intermediaire', alt:"Crunch à la machine abdominale en série longue à défaut de mouvement au sol."},
+    {n:'Fentes avant sac lesté (Sandbag Lunges)', d:"Sac de sable sur les épaules, enchaînez les fentes marchées sur la distance.", minLevel:'intermediaire', alt:"Presse à cuisses unilatérale (machine, une jambe à la fois)."},
+    {n:'Rowing machine (Rameur)', d:"Sur rameur, poussez avec les jambes puis tirez la poignée vers le buste, enchaînement fluide.", minLevel:'debutant', alt:"Déjà un appareil guidé — variante : tirage horizontal à la machine assise."}
   ]
 };
 
@@ -1338,33 +1339,33 @@ const EXO_HYROX = {
    thrusters, kettlebell swings, box jumps, tractions, snatch, etc. */
 const EXO_CROSSFIT = {
   jambes: [
-    {n:'Box Jumps', d:"Sautez pieds joints sur la box, extension complète des hanches en haut, redescendez contrôlé.", minLevel:'intermediaire'},
-    {n:'Thrusters', d:"Squat avant puis extension explosive pour pousser la barre au-dessus de la tête.", minLevel:'intermediaire'},
-    {n:'Kettlebell Swings', d:"Bascule de hanches pour projeter le kettlebell à hauteur d'épaule/tête, dos gainé.", minLevel:'debutant'},
-    {n:'Wall Balls', d:"Squat puis lancez le ballon lesté contre le mur à la cible, réceptionnez et enchaînez.", minLevel:'intermediaire'},
-    {n:'Air Squats', d:"Squat au poids du corps, amplitude complète, rythme soutenu.", minLevel:'debutant'}
+    {n:'Box Jumps', d:"Sautez pieds joints sur la box, extension complète des hanches en haut, redescendez contrôlé.", minLevel:'intermediaire', alt:"Presse à cuisses (machine guidée) en contraction explosive contrôlée."},
+    {n:'Thrusters', d:"Squat avant puis extension explosive pour pousser la barre au-dessus de la tête.", minLevel:'intermediaire', alt:"Presse à cuisses (machine) enchaînée avec un développé épaules à la machine."},
+    {n:'Kettlebell Swings', d:"Bascule de hanches pour projeter le kettlebell à hauteur d'épaule/tête, dos gainé.", minLevel:'debutant', alt:"Presse à cuisses (machine) à cadence soutenue, amplitude complète."},
+    {n:'Wall Balls', d:"Squat puis lancez le ballon lesté contre le mur à la cible, réceptionnez et enchaînez.", minLevel:'intermediaire', alt:"Presse à cuisses (machine) enchaînée avec une poulie haute frontale."},
+    {n:'Air Squats', d:"Squat au poids du corps, amplitude complète, rythme soutenu.", minLevel:'debutant', alt:"Presse à cuisses (machine guidée) à charge légère et rythme soutenu."}
   ],
   dos: [
-    {n:'Pull-ups (kipping)', d:"Suspendu à la barre, utilisez l'impulsion du corps pour enchaîner les tractions en rythme.", minLevel:'avance'},
-    {n:'Deadlift (CrossFit)', d:"Soulevé de terre technique, charge modérée à lourde, cadence soutenue selon le WOD.", minLevel:'intermediaire'},
-    {n:'Rope Climb', d:"Grimpez à la corde en utilisant bras et jambes, redescendez contrôlé.", minLevel:'avance'},
-    {n:'Ring Rows (rowing suspendu)', d:"Suspendu à des anneaux ou sangles inclinées, tirez la poitrine vers les mains, corps gainé.", minLevel:'debutant'}
+    {n:'Pull-ups (kipping)', d:"Suspendu à la barre, utilisez l'impulsion du corps pour enchaîner les tractions en rythme.", minLevel:'avance', alt:"Tractions assistées à la machine (contrepoids réglable) ou tirage vertical poulie haute."},
+    {n:'Deadlift (CrossFit)', d:"Soulevé de terre technique, charge modérée à lourde, cadence soutenue selon le WOD.", minLevel:'intermediaire', alt:"Soulevé de terre au Smith machine (guidage vertical)."},
+    {n:'Rope Climb', d:"Grimpez à la corde en utilisant bras et jambes, redescendez contrôlé.", minLevel:'avance', alt:"Tirage vertical à la poulie haute (machine) en série longue."},
+    {n:'Ring Rows (rowing suspendu)', d:"Suspendu à des anneaux ou sangles inclinées, tirez la poitrine vers les mains, corps gainé.", minLevel:'debutant', alt:"Rowing à la machine assise, poitrine calée sur le support."}
   ],
   pecs: [
-    {n:'Push Press', d:"Légère flexion de jambes puis poussez la barre au-dessus de la tête avec l'élan des hanches.", minLevel:'intermediaire'},
-    {n:'Ring Dips', d:"En appui sur anneaux, descendez les coudes puis repoussez le corps vers le haut.", minLevel:'avance'},
-    {n:'Thrusters', d:"Squat avant puis extension explosive pour pousser la barre au-dessus de la tête.", minLevel:'intermediaire'},
-    {n:'Pompes complètes', d:"Pompes au sol, corps gainé, amplitude complète, rythme soutenu façon WOD.", minLevel:'debutant'}
+    {n:'Push Press', d:"Légère flexion de jambes puis poussez la barre au-dessus de la tête avec l'élan des hanches.", minLevel:'intermediaire', alt:"Développé épaules à la machine guidée."},
+    {n:'Ring Dips', d:"En appui sur anneaux, descendez les coudes puis repoussez le corps vers le haut.", minLevel:'avance', alt:"Dips assistés à la machine (contrepoids réglable)."},
+    {n:'Thrusters', d:"Squat avant puis extension explosive pour pousser la barre au-dessus de la tête.", minLevel:'intermediaire', alt:"Presse à cuisses (machine) enchaînée avec un développé épaules à la machine."},
+    {n:'Pompes complètes', d:"Pompes au sol, corps gainé, amplitude complète, rythme soutenu façon WOD.", minLevel:'debutant', alt:"Presse à pectoraux guidée (machine) à cadence soutenue."}
   ],
   bras: [
-    {n:'Muscle-ups', d:"Traction explosive à la barre ou aux anneaux enchaînée avec un passage en appui dips.", minLevel:'avance'},
-    {n:'Ring Dips', d:"En appui sur anneaux, descendez les coudes puis repoussez le corps vers le haut.", minLevel:'avance'},
-    {n:'Kettlebell Swings', d:"Bascule de hanches pour projeter le kettlebell à hauteur d'épaule/tête, dos gainé.", minLevel:'debutant'}
+    {n:'Muscle-ups', d:"Traction explosive à la barre ou aux anneaux enchaînée avec un passage en appui dips.", minLevel:'avance', alt:"Tirage vertical à la poulie haute (machine) enchaîné avec des dips assistés (machine)."},
+    {n:'Ring Dips', d:"En appui sur anneaux, descendez les coudes puis repoussez le corps vers le haut.", minLevel:'avance', alt:"Dips assistés à la machine (contrepoids réglable)."},
+    {n:'Kettlebell Swings', d:"Bascule de hanches pour projeter le kettlebell à hauteur d'épaule/tête, dos gainé.", minLevel:'debutant', alt:"Presse à cuisses (machine) à cadence soutenue, amplitude complète."}
   ],
   sangle: [
-    {n:'Toes-to-Bar', d:"Suspendu à la barre, montez les pieds toucher la barre en gainant tout le corps.", minLevel:'avance'},
-    {n:'Double-Unders (corde à sauter)', d:"Corde à sauter avec deux passages sous les pieds par saut, rythme soutenu.", minLevel:'intermediaire'},
-    {n:'Kettlebell Swings', d:"Bascule de hanches pour projeter le kettlebell à hauteur d'épaule/tête, dos gainé.", minLevel:'debutant'}
+    {n:'Toes-to-Bar', d:"Suspendu à la barre, montez les pieds toucher la barre en gainant tout le corps.", minLevel:'avance', alt:"Crunch à la machine abdominale guidée en série longue."},
+    {n:'Double-Unders (corde à sauter)', d:"Corde à sauter avec deux passages sous les pieds par saut, rythme soutenu.", minLevel:'intermediaire', alt:"Crunch à la machine abdominale en cadence soutenue, à défaut de saut à la corde."},
+    {n:'Kettlebell Swings', d:"Bascule de hanches pour projeter le kettlebell à hauteur d'épaule/tête, dos gainé.", minLevel:'debutant', alt:"Presse à cuisses (machine) à cadence soutenue, amplitude complète."}
   ]
 };
 
@@ -1620,27 +1621,28 @@ function generateTrainingPlan(profile){
            exo choisi (parmi la base correspondant au focus + au muscle), séries, reps, repos. */
         const ov = exoOverrides[`${dayIdx}_${exoIdx}`] || null;
         const effectiveGroup = (ov && ov.group && GROUP_META[ov.group]) ? ov.group : g;
-        let finalName, finalDesc;
+        let finalName, finalDesc, finalAlt;
         if(effectiveGroup !== g){
           const groupList = exoListForGroup(effectiveGroup, typeId, profile.niveau);
           const found = (ov && ov.exo) ? groupList.find(x=> x.n === ov.exo) : null;
           if(found){
-            finalName = found.n; finalDesc = found.d;
+            finalName = found.n; finalDesc = found.d; finalAlt = found.alt;
           } else {
             const autoPick = pickExosForGroup(effectiveGroup, 1, dayIdx + exoIdx, typeId, profile.niveau)[0];
             finalName = autoPick ? autoPick.n : exo.n;
             finalDesc = autoPick ? autoPick.d : exo.d;
+            finalAlt = autoPick ? autoPick.alt : exo.alt;
           }
         } else {
-          finalName = exo.n; finalDesc = exo.d;
+          finalName = exo.n; finalDesc = exo.d; finalAlt = exo.alt;
           if(ov && ov.exo){
             const found = exoListForGroup(g, typeId, profile.niveau).find(x=> x.n === ov.exo);
-            if(found){ finalName = found.n; finalDesc = found.d; }
+            if(found){ finalName = found.n; finalDesc = found.d; finalAlt = found.alt; }
           }
         }
         exercises.push({
           group: effectiveGroup, exoIndex:exoIdx, typeId,
-          name: finalName, desc: finalDesc,
+          name: finalName, desc: finalDesc, alt: finalAlt,
           sets: (ov && ov.sets) ? ov.sets : sets,
           reps: (ov && ov.reps) ? ov.reps : reps,
           rest: (ov && ov.rest) ? ov.rest : rest,
@@ -1671,15 +1673,15 @@ function generateTrainingPlan(profile){
       const chosen = (added.exo && list.find(x=> x.n === added.exo)) || list[0];
       if(!chosen) return;
       const ov = exoOverrides[`${dayIdx}_${added.id}`] || null;
-      let finalName = chosen.n, finalDesc = chosen.d;
+      let finalName = chosen.n, finalDesc = chosen.d, finalAlt = chosen.alt;
       if(ov && ov.exo){
         const found = list.find(x=> x.n === ov.exo);
-        if(found){ finalName = found.n; finalDesc = found.d; }
+        if(found){ finalName = found.n; finalDesc = found.d; finalAlt = found.alt; }
       }
       const effectiveGroup = (ov && ov.group && GROUP_META[ov.group]) ? ov.group : group;
       finalExercises.push({
         group: effectiveGroup, exoIndex: added.id, typeId,
-        name: finalName, desc: finalDesc,
+        name: finalName, desc: finalDesc, alt: finalAlt,
         sets: (ov && ov.sets) ? ov.sets : sets,
         reps: (ov && ov.reps) ? ov.reps : reps,
         rest: (ov && ov.rest) ? ov.rest : rest,
@@ -1832,6 +1834,7 @@ function renderTraining(profile){
           <div class="exo-current-name">${e.name}</div>
           <select class="exo-edit-select" data-field="exo" data-day-index="${dayIdx}" data-exo-index="${e.exoIndex}" data-default="">${exoOptions}</select>
           <div class="exo-desc">${e.desc}</div>
+          ${e.alt ? `<div class="exo-alt">🔧 <b>Alternative machine :</b> ${e.alt}</div>` : ''}
           ${tag}
         </td>
         <td>
@@ -2582,7 +2585,7 @@ function buildNutritionPrintableHTML(profile, plan, history){
 function buildTrainingPrintableHTML(profile){
   const days = generateTrainingPlan(profile);
   const daysHtml = days.map(day=>{
-    const rows = day.exercises.map(e=> `<tr><td>${e.name}</td><td>${GROUP_META[e.group].label}</td><td>${e.sets}</td><td>${e.reps}</td><td>${e.rest}</td></tr>`).join('');
+    const rows = day.exercises.map(e=> `<tr><td>${e.name}${e.alt ? `<br><span style="font-size:10.5px;color:#3D6B52;">🔧 Alt. machine : ${e.alt}</span>` : ''}</td><td>${GROUP_META[e.group].label}</td><td>${e.sets}</td><td>${e.reps}</td><td>${e.rest}</td></tr>`).join('');
     return `<div style="page-break-inside:avoid; break-inside:avoid; margin-bottom:14px;">
       <h3 style="margin-top:18px;">${day.name}</h3>
       <table style="width:100%;border-collapse:collapse;font-size:12px;">
