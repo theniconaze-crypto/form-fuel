@@ -166,6 +166,39 @@ a{color:inherit;}
 .form-actions{grid-column:1/-1; display:flex; gap:10px; margin-top:6px; flex-wrap:wrap;}
 .hint{grid-column:1/-1; font-size:12px; color:var(--ink-dim); margin-top:-6px;}
 
+/* ---------- sélecteur d'allergènes ---------- */
+.allergene-field{grid-column:1/-1;}
+.allergene-input-row{display:flex; gap:8px; position:relative;}
+.allergene-input-row input{flex:1;}
+.allergene-dropdown{
+  position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:20;
+  background:#fff; border:1.5px solid #D9D2BC; border-radius:8px;
+  max-height:230px; overflow-y:auto; box-shadow:0 10px 24px rgba(0,0,0,0.18);
+  display:none;
+}
+.allergene-dropdown.show{display:block;}
+.allergene-option{
+  padding:10px 12px; font-size:14px; color:var(--ink); cursor:pointer;
+  border-bottom:1px dashed #EDE9DC;
+}
+.allergene-option:last-child{border-bottom:none;}
+.allergene-option:hover, .allergene-option.hi{background:var(--paper-alt);}
+.allergene-option.add-custom{color:var(--protein); font-weight:600;}
+.allergene-empty{padding:10px 12px; font-size:13px; color:var(--ink-dim); font-style:italic;}
+.allergene-chips{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;}
+.allergene-chip{
+  display:inline-flex; align-items:center; gap:7px;
+  background:var(--accent); color:var(--accent-ink);
+  border-radius:20px; padding:6px 8px 6px 13px; font-size:13px; font-weight:600;
+}
+.allergene-chip.custom{background:#fff; border:1.5px dashed var(--protein); color:#7A3A28;}
+.allergene-chip button{
+  background:rgba(0,0,0,0.12); border:none; border-radius:50%; color:inherit;
+  width:20px; height:20px; font-size:13px; line-height:1; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; padding:0; font-weight:700;
+}
+.allergene-chip button:hover{background:rgba(0,0,0,0.22);}
+
 /* ---------- stat cards ---------- */
 .stat-row{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-top:10px;}
 .stat-card{
@@ -401,6 +434,18 @@ a{color:inherit;}
               <input type="number" id="f_duree" inputmode="numeric" min="2" max="104" placeholder="Ex : 12" value="12">
             </div>
             <p class="hint">Le poids visé n'est utile que pour une perte ou une prise de poids — laisse vide en maintien.</p>
+
+            <div class="field allergene-field">
+              <label for="f_allergene_search">Allergènes à éviter (optionnel)</label>
+              <div class="allergene-input-row">
+                <input type="text" id="f_allergene_search" placeholder="Rechercher (lait, gluten...) ou taper un allergène personnalisé" autocomplete="off">
+                <button type="button" class="btn btn-ghost btn-sm" id="allergeneAddBtn">Ajouter</button>
+                <div class="allergene-dropdown" id="allergeneDropdown"></div>
+              </div>
+              <div class="allergene-chips" id="allergeneChips"></div>
+            </div>
+            <p class="hint">Choisis un allergène dans la liste déroulante, ou tape-en un et clique sur « Ajouter » pour le forcer manuellement. Les recettes qui le contiennent seront écartées du plan.</p>
+
             <div class="form-actions">
               <button type="submit" class="btn btn-accent">Générer mon plan</button>
               <button type="button" class="btn btn-ghost" id="resetFormBtn">Réinitialiser</button>
@@ -573,6 +618,117 @@ let state = {
 
 function newId(){ return 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
 
+/* =========================================================================
+   ALLERGÈNES — sélecteur (recherche + menu déroulant + ajout manuel)
+========================================================================= */
+let selectedAllergenes = []; // [{id, label, custom}]
+
+function isAllergeneSelected(id){
+  const n = normalizeAllergenText(id);
+  return selectedAllergenes.some(a => normalizeAllergenText(a.id) === n);
+}
+
+function addAllergene(id, label, custom){
+  if(!label || !label.trim()) return;
+  if(isAllergeneSelected(custom ? label : id)) return;
+  selectedAllergenes.push({id: custom ? normalizeAllergenText(label) : id, label: label.trim(), custom: !!custom});
+  renderAllergeneChips();
+  const input = document.getElementById('f_allergene_search');
+  if(input){ input.value = ''; input.focus(); }
+  hideAllergeneDropdown();
+}
+
+function removeAllergene(id){
+  selectedAllergenes = selectedAllergenes.filter(a => a.id !== id);
+  renderAllergeneChips();
+}
+
+function renderAllergeneChips(){
+  const box = document.getElementById('allergeneChips');
+  if(!box) return;
+  box.innerHTML = selectedAllergenes.map(a => `
+    <span class="allergene-chip${a.custom ? ' custom' : ''}">
+      ${escapeHtml(a.label)}${a.custom ? ' (manuel)' : ''}
+      <button type="button" data-remove-allergene="${escapeHtml(a.id)}" aria-label="Retirer ${escapeHtml(a.label)}">×</button>
+    </span>`).join('');
+  box.querySelectorAll('[data-remove-allergene]').forEach(btn=>{
+    btn.addEventListener('click', ()=> removeAllergene(btn.dataset.removeAllergene));
+  });
+}
+
+function hideAllergeneDropdown(){
+  const dd = document.getElementById('allergeneDropdown');
+  if(dd){ dd.classList.remove('show'); dd.innerHTML = ''; }
+}
+
+function renderAllergeneDropdown(query){
+  const dd = document.getElementById('allergeneDropdown');
+  if(!dd) return;
+  const q = normalizeAllergenText(query);
+  const matches = ALLERGENES_COURANTS.filter(a =>
+    !isAllergeneSelected(a.id) && (!q || normalizeAllergenText(a.label).includes(q) || normalizeAllergenText(a.id).includes(q))
+  );
+
+  let html = '';
+  if(matches.length){
+    html += matches.map(a => `<div class="allergene-option" data-allergene-id="${escapeHtml(a.id)}" data-allergene-label="${escapeHtml(a.label)}">${escapeHtml(a.label)}</div>`).join('');
+  } else if(!q){
+    html += `<div class="allergene-empty">Tous les allergènes courants sont déjà sélectionnés.</div>`;
+  }
+  if(q && !matches.some(a => normalizeAllergenText(a.label) === q)){
+    html += `<div class="allergene-option add-custom" data-allergene-custom="${escapeHtml(query.trim())}">➕ Forcer « ${escapeHtml(query.trim())} » comme allergène personnalisé</div>`;
+  }
+  if(!html){
+    html = `<div class="allergene-empty">Aucun résultat.</div>`;
+  }
+
+  dd.innerHTML = html;
+  dd.classList.add('show');
+  dd.querySelectorAll('[data-allergene-id]').forEach(opt=>{
+    opt.addEventListener('mousedown', (e)=>{
+      e.preventDefault();
+      addAllergene(opt.dataset.allergeneId, opt.dataset.allergeneLabel, false);
+    });
+  });
+  dd.querySelectorAll('[data-allergene-custom]').forEach(opt=>{
+    opt.addEventListener('mousedown', (e)=>{
+      e.preventDefault();
+      addAllergene(null, opt.dataset.allergeneCustom, true);
+    });
+  });
+}
+
+function initAllergeneField(){
+  const input = document.getElementById('f_allergene_search');
+  const addBtn = document.getElementById('allergeneAddBtn');
+  if(!input) return;
+
+  input.addEventListener('input', ()=> renderAllergeneDropdown(input.value));
+  input.addEventListener('focus', ()=> renderAllergeneDropdown(input.value));
+  input.addEventListener('blur', ()=> setTimeout(hideAllergeneDropdown, 150));
+  input.addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter'){
+      e.preventDefault();
+      const val = input.value.trim();
+      if(!val) return;
+      const known = ALLERGENES_COURANTS.find(a => normalizeAllergenText(a.label) === normalizeAllergenText(val) || normalizeAllergenText(a.id) === normalizeAllergenText(val));
+      if(known) addAllergene(known.id, known.label, false);
+      else addAllergene(null, val, true);
+    } else if(e.key === 'Escape'){
+      hideAllergeneDropdown();
+    }
+  });
+  addBtn.addEventListener('click', ()=>{
+    const val = input.value.trim();
+    if(!val){ renderAllergeneDropdown(''); input.focus(); return; }
+    const known = ALLERGENES_COURANTS.find(a => normalizeAllergenText(a.label) === normalizeAllergenText(val) || normalizeAllergenText(a.id) === normalizeAllergenText(val));
+    if(known) addAllergene(known.id, known.label, false);
+    else addAllergene(null, val, true);
+  });
+
+  renderAllergeneChips();
+}
+
 function showToast(msg){
   const t = document.getElementById('toast');
   t.textContent = msg;
@@ -689,58 +845,114 @@ const MEALS = [
 
 function pick(arr, seed){ return arr[seed % arr.length]; }
 
+/* ---- ALLERGÈNES : 14 allergènes réglementaires + gestion des ajouts manuels ---- */
+const ALLERGENES_COURANTS = [
+  {id:'gluten', label:'Gluten (blé, avoine, orge, seigle...)'},
+  {id:'crustaces', label:'Crustacés'},
+  {id:'oeuf', label:'Œufs'},
+  {id:'poisson', label:'Poisson'},
+  {id:'arachide', label:'Arachides (cacahuète)'},
+  {id:'soja', label:'Soja'},
+  {id:'lait', label:'Lait / produits laitiers'},
+  {id:'fruits_a_coque', label:'Fruits à coque (amandes, noix, noisettes...)'},
+  {id:'celeri', label:'Céleri'},
+  {id:'moutarde', label:'Moutarde'},
+  {id:'sesame', label:'Graines de sésame'},
+  {id:'sulfites', label:'Sulfites (>10 mg/kg)'},
+  {id:'lupin', label:'Lupin'},
+  {id:'mollusques', label:'Mollusques'}
+];
+
+function normalizeAllergenText(s){
+  return (s || '').toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+}
+
 /* ---- RECETTES : vraies recettes avec ingrédients et étapes ---- */
 const RECIPES = {
   petitdej: [
     {t:'Porridge avoine, banane & beurre de cacahuète', kcal:460, p:18, c:64, f:15, prep:8, objectifs:['prise','maintien'],
+     allergenes:['gluten','lait','arachide'],
      ing:['50 g de flocons d\'avoine','250 ml de lait (ou boisson végétale)','1 banane','1 c. à s. de beurre de cacahuète','1 pincée de cannelle'],
      steps:['Faites chauffer le lait dans une casserole, ajoutez les flocons d\'avoine.','Laissez cuire 5 min à feu doux en remuant.','Versez dans un bol, ajoutez la banane écrasée.','Terminez avec le beurre de cacahuète et la cannelle.']},
     {t:'Omelette légère, épinards & pain complet', kcal:320, p:24, c:16, f:18, prep:10, objectifs:['perte','maintien'],
+     allergenes:['oeuf','gluten'],
      ing:['3 œufs','1 poignée d\'épinards frais','1 tranche de pain complet','sel, poivre','1 filet d\'huile d\'olive'],
      steps:['Battez les œufs avec sel et poivre.','Faites revenir les épinards 2 min dans une poêle huilée.','Ajoutez les œufs battus, cuisez à feu doux jusqu\'à prise.','Servez avec la tranche de pain complet.']},
     {t:'Skyr, fruits rouges & granola', kcal:320, p:22, c:45, f:6, prep:5, objectifs:['perte','maintien','prise'],
+     allergenes:['lait','gluten'],
      ing:['200 g de skyr ou fromage blanc','1 poignée de fruits rouges (frais ou surgelés)','30 g de granola ou flocons d\'avoine grillés','1 filet de miel (optionnel)'],
      steps:['Versez le skyr dans un bol.','Ajoutez les fruits rouges.','Parsemez de granola et d\'un filet de miel.']}
   ],
   dejeuner: [
     {t:'Poulet grillé, riz complet & brocolis', kcal:520, p:55, c:51, f:11, prep:25, objectifs:['perte','maintien','prise'],
+     allergenes:[],
      ing:['150 g de blanc de poulet','60 g de riz complet (poids cru)','150 g de brocolis','1 c. à c. d\'huile d\'olive','ail, citron, sel, poivre'],
      steps:['Faites cuire le riz complet selon les instructions du paquet.','Faites mariner le poulet avec ail, citron, sel et poivre.','Grillez le poulet 5-6 min de chaque côté.','Cuisez les brocolis à la vapeur 8 min.','Assemblez le tout avec un filet d\'huile d\'olive.']},
     {t:'Bœuf haché 5%, pâtes complètes & sauce tomate maison', kcal:590, p:48, c:60, f:18, prep:25, objectifs:['prise','maintien'],
+     allergenes:['gluten'],
      ing:['150 g de bœuf haché 5% MG','70 g de pâtes complètes (poids cru)','1 boîte de tomates concassées','1 oignon','basilic frais','1 c. à c. d\'huile d\'olive'],
      steps:['Faites revenir l\'oignon émincé dans l\'huile d\'olive.','Ajoutez le bœuf haché et faites-le dorer.','Versez les tomates concassées, laissez mijoter 12 min.','Faites cuire les pâtes, mélangez avec la sauce et le basilic.']},
     {t:'Salade de poulet, quinoa & légumes croquants', kcal:430, p:42, c:38, f:12, prep:20, objectifs:['perte'],
+     allergenes:['lait'],
      ing:['120 g de blanc de poulet cuit', '50 g de quinoa (poids cru)','tomates cerises','1/2 concombre','30 g de feta légère','vinaigrette au citron'],
      steps:['Faites cuire le quinoa puis laissez-le refroidir.','Coupez le poulet, les tomates et le concombre.','Mélangez tous les ingrédients dans un saladier.','Ajoutez la feta émiettée et la vinaigrette au citron.']}
   ],
   diner: [
     {t:'Bowl de saumon, patate douce & épinards', kcal:580, p:36, c:45, f:28, prep:25, objectifs:['prise','maintien'],
+     allergenes:['poisson'],
      ing:['150 g de pavé de saumon','200 g de patate douce','1 poignée d\'épinards frais','1/2 avocat','jus de citron, sel, poivre'],
      steps:['Épluchez et coupez la patate douce en cubes, faites-la rôtir au four 20 min (200°C).','Faites cuire le saumon à la poêle 4 min de chaque côté.','Disposez les épinards, la patate douce et le saumon dans un bol.','Ajoutez l\'avocat et un filet de citron.']},
     {t:'Tofu sauté, riz & légumes croquants', kcal:460, p:26, c:60, f:13, prep:20, objectifs:['perte','maintien'],
+     allergenes:['soja'],
      ing:['150 g de tofu ferme','60 g de riz (poids cru)','1 poivron','1 courgette','sauce soja, gingembre frais'],
      steps:['Coupez le tofu en dés et faites-le dorer à la poêle.','Ajoutez le poivron et la courgette émincés, faites sauter 5-6 min.','Assaisonnez avec sauce soja et gingembre râpé.','Servez sur un lit de riz cuit.']},
     {t:'Soupe de légumes & œufs pochés', kcal:270, p:16, c:26, f:11, prep:20, objectifs:['perte'],
+     allergenes:['oeuf'],
      ing:['courgette, carotte, poireau au choix','1 bouillon de légumes','2 œufs','persil frais'],
      steps:['Faites revenir les légumes coupés en morceaux puis couvrez de bouillon.','Laissez mijoter 15 min jusqu\'à tendreté.','Pochez les œufs 3 min dans une eau frémissante.','Servez la soupe avec l\'œuf poché et le persil.']}
   ],
   collation: [
     {t:'Shaker protéiné & amandes', kcal:210, p:27, c:5, f:9, prep:3, objectifs:['prise','maintien'],
+     allergenes:['lait','fruits_a_coque'],
      ing:['1 dose de whey protéine','200 ml d\'eau ou de lait','15 g d\'amandes'],
      steps:['Mélangez la whey avec l\'eau ou le lait au shaker.','Dégustez avec les amandes.']},
     {t:'Yaourt grec & fruit frais', kcal:160, p:13, c:20, f:3, prep:2, objectifs:['perte'],
+     allergenes:['lait'],
      ing:['150 g de yaourt grec','1 fruit de saison'],
      steps:['Coupez le fruit en morceaux.','Mélangez avec le yaourt grec.']},
     {t:'Houmous, bâtonnets de légumes & galette de riz', kcal:200, p:6, c:21, f:10, prep:5, objectifs:['perte','maintien'],
+     allergenes:['sesame','celeri'],
      ing:['3 c. à s. de houmous','carotte et céleri en bâtonnets','1 galette de riz soufflé'],
      steps:['Coupez les légumes en bâtonnets.','Trempez-les dans le houmous avec la galette de riz.']}
   ]
 };
 
-function pickRecipe(mealKey, objectif, seed){
+/* ---- Filtrage allergènes ----
+   allergenList : tableau d'objets {id, label, custom}. Pour un allergène de la
+   liste connue, on compare aux tags recipe.allergenes. Pour un allergène ajouté
+   manuellement (custom), on recherche le texte saisi dans le titre et les
+   ingrédients de la recette (comparaison insensible aux accents/majuscules). */
+function recipeContainsAllergene(recipe, allergene){
+  if(!allergene.custom){
+    return (recipe.allergenes || []).includes(allergene.id);
+  }
+  const needle = normalizeAllergenText(allergene.label);
+  if(!needle) return false;
+  const haystack = normalizeAllergenText(recipe.t + ' ' + recipe.ing.join(' '));
+  return haystack.includes(needle);
+}
+
+function recipeIsSafe(recipe, allergenList){
+  if(!allergenList || !allergenList.length) return true;
+  return !allergenList.some(a => recipeContainsAllergene(recipe, a));
+}
+
+function pickRecipe(mealKey, objectif, seed, allergenList){
   const list = RECIPES[mealKey] || [];
-  const matching = list.filter(r => r.objectifs.includes(objectif));
-  const pool = matching.length ? matching : list;
+  const safeList = (allergenList && allergenList.length) ? list.filter(r => recipeIsSafe(r, allergenList)) : list;
+  if(!safeList.length) return null; // aucune recette de la base ne respecte les allergènes sélectionnés pour ce repas
+  const matching = safeList.filter(r => r.objectifs.includes(objectif));
+  const pool = matching.length ? matching : safeList;
   return pool[seed % pool.length];
 }
 
@@ -851,19 +1063,28 @@ function renderNutrition(profile, plan){
   const obj = profile.objectif;
   const p1 = plan.proteinPct, p2 = plan.proteinPct + plan.carbsPct;
 
+  const allergenList = profile.allergenes || [];
+
   let mealsHtml = '';
   let totalRecipeProtein = 0;
   MEALS.forEach((m, i)=>{
     const kcal = Math.round(plan.calTarget * m.pct);
     const proteinTarget = Math.round(plan.proteinG * m.pct);
-    const recipe = pickRecipe(m.key, obj, recipeSeed + i);
+    const recipe = pickRecipe(m.key, obj, recipeSeed + i, allergenList);
     if(recipe) totalRecipeProtein += getScaledRecipe(recipe, kcal).p;
+    const bodyHtml = recipe
+      ? recipeCardHtml(recipe, kcal, proteinTarget)
+      : `<div class="recipe-card"><p class="recipe-adjust">⚠️ Aucune recette de la base ne respecte tous les allergènes sélectionnés pour ce repas. Adapte une recette existante en remplaçant l'ingrédient concerné, ou prévois ce repas manuellement.</p></div>`;
     mealsHtml += `
       <div class="meal-card">
         <div class="meal-head"><h4>${m.label}</h4><span class="meal-kcal">~${kcal} kcal</span></div>
-        ${recipeCardHtml(recipe, kcal, proteinTarget)}
+        ${bodyHtml}
       </div>`;
   });
+
+  const allergenNoteHtml = allergenList.length
+    ? `<p class="sub" style="margin-top:-6px;">🚫 Allergènes évités : ${allergenList.map(a=> escapeHtml(a.label) + (a.custom ? ' (ajout manuel)' : '')).join(', ')}</p>`
+    : '';
 
   const proteinRatio = plan.proteinG > 0 ? totalRecipeProtein / plan.proteinG : 1;
   const coherenceHtml = proteinRatio >= 0.85
@@ -881,6 +1102,7 @@ function renderNutrition(profile, plan){
       <div class="sheet-tab" style="background:var(--carbs); color:#2A2410;">Étape 2</div>
       <h2>Plan nutritionnel — ${escapeHtml(profile.prenom)}</h2>
       <p class="sub">Objectif quotidien calculé à partir de ton métabolisme, ton activité et ton objectif.</p>
+      ${allergenNoteHtml}
       <div class="macro-wrap">
         <div class="plate" style="background:conic-gradient(var(--protein) 0% ${p1}%, var(--carbs) ${p1}% ${p2}%, var(--fat) ${p2}% 100%);">
           <div class="plate-label">
@@ -1336,7 +1558,8 @@ function readForm(){
     jours: document.getElementById('f_jours').value,
     objectif: document.getElementById('f_objectif').value,
     poidscible: document.getElementById('f_poidscible').value ? parseFloat(document.getElementById('f_poidscible').value) : null,
-    duree: parseInt(document.getElementById('f_duree').value, 10) || 12
+    duree: parseInt(document.getElementById('f_duree').value, 10) || 12,
+    allergenes: selectedAllergenes.slice()
   };
 }
 
@@ -1356,11 +1579,15 @@ function fillForm(p){
   document.getElementById('f_objectif').value = p.objectif || 'perte';
   document.getElementById('f_poidscible').value = p.poidscible || '';
   document.getElementById('f_duree').value = p.duree || 12;
+  selectedAllergenes = Array.isArray(p.allergenes) ? p.allergenes.slice() : [];
+  renderAllergeneChips();
 }
 
 function clearForm(){
   document.getElementById('profileForm').reset();
   document.querySelectorAll('.radio-chip').forEach((chip,i)=> chip.classList.toggle('checked', i===0));
+  selectedAllergenes = [];
+  renderAllergeneChips();
 }
 
 /* =========================================================================
@@ -1381,6 +1608,9 @@ function renderSummary(profile, plan){
 
   const warnBox = document.getElementById('warnBox');
   let html = '';
+  if(profile.allergenes && profile.allergenes.length){
+    html += `<div class="ok-box">🚫 Allergènes pris en compte pour tes recettes : ${profile.allergenes.map(a=> escapeHtml(a.label) + (a.custom ? ' (manuel)' : '')).join(', ')}.</div>`;
+  }
   if(plan.wasFloored){
     html += `<div class="warn-box">⚠️ Ton objectif calorique calculé était trop bas pour rester sûr — il a été relevé à un plancher de sécurité. Un déficit trop agressif favorise la perte musculaire et les fringales.</div>`;
   }
@@ -1625,11 +1855,16 @@ function buildDocHeaderHtml(profile, subtitle){
 
 function buildNutritionPrintableHTML(profile, plan, history){
   const objLabel = {perte:'Perte de poids', prise:'Prise de masse', maintien:'Maintien / recomposition'}[profile.objectif];
+  const allergenListPdf = profile.allergenes || [];
   let totalRecipeProteinPdf = 0;
   const mealsHtmlPdf = MEALS.map((m,i)=>{
     const kcal = Math.round(plan.calTarget * m.pct);
-    const recipe = pickRecipe(m.key, profile.objectif, recipeSeed + i);
-    if(!recipe) return '';
+    const recipe = pickRecipe(m.key, profile.objectif, recipeSeed + i, allergenListPdf);
+    if(!recipe) return `
+      <div style="margin-bottom:12px; page-break-inside:avoid; break-inside:avoid;">
+        <p style="margin:0 0 2px;font-weight:700;font-size:13px;">${m.label}</p>
+        <p style="margin:2px 0;font-size:12px;color:#7A3A28;">⚠️ Aucune recette de la base ne respecte tous les allergènes sélectionnés pour ce repas — à prévoir manuellement.</p>
+      </div>`;
     const s = getScaledRecipe(recipe, kcal);
     totalRecipeProteinPdf += s.p;
     return `
@@ -1641,6 +1876,9 @@ function buildNutritionPrintableHTML(profile, plan, history){
   }).join('');
   const proteinRatioPdf = plan.proteinG > 0 ? totalRecipeProteinPdf / plan.proteinG : 1;
   const coherenceHtmlPdf = `<p style="margin:6px 0 0;font-size:11.5px;color:${proteinRatioPdf >= 0.85 ? '#33513E' : '#7A3A28'};">${proteinRatioPdf >= 0.85 ? '✅' : '⚠️'} Ces recettes couvrent environ ${totalRecipeProteinPdf} g de protéines sur les ${plan.proteinG} g visés par jour.</p>`;
+  const allergenNoteHtmlPdf = allergenListPdf.length
+    ? `<p style="font-size:12px;color:#7A3A28;margin:0 0 8px;">🚫 Allergènes évités : ${allergenListPdf.map(a=> escapeHtml(a.label) + (a.custom ? ' (ajout manuel)' : '')).join(', ')}</p>`
+    : '';
 
   let historyHtml = '';
   if(history && history.length){
@@ -1666,6 +1904,7 @@ function buildNutritionPrintableHTML(profile, plan, history){
       </table>
 
       <h2>Recettes du jour</h2>
+      ${allergenNoteHtmlPdf}
       ${mealsHtmlPdf}
       ${coherenceHtmlPdf}
 
@@ -1718,6 +1957,7 @@ function handleExportTrainingPdf(){
 async function init(){
   initRadioChips();
   initTabs();
+  initAllergeneField();
   document.getElementById('e_date').value = new Date().toISOString().slice(0,10);
   toggleTargetWeightField();
 
