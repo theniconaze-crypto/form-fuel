@@ -272,7 +272,11 @@ a{color:inherit;}
 }
 
 /* ---------- printable (used only for pdf export, hidden on screen) ---------- */
-#printable{position:fixed; top:0; left:0; width:760px; background:#fff; color:#222; font-family:var(--font-body); z-index:-1;}
+/* IMPORTANT : pas de position:fixed ni de z-index négatif ici — sur iOS Safari,
+   WebKit ne peint jamais un élément fixed placé en arrière-plan permanent, ce qui
+   fait que le contenu n'apparaît pas du tout à l'impression / export PDF. On le
+   place plutôt hors-écran en position:absolute (normalement peint, juste décalé). */
+#printable{position:absolute; top:0; left:-99999px; width:760px; background:#fff; color:#222; font-family:var(--font-body);}
 #printable h1,#printable h2,#printable h3{font-family:var(--font-display);}
 
 /* ---------- impression native du navigateur (export PDF) ---------- */
@@ -281,7 +285,7 @@ a{color:inherit;}
   body *{ visibility:hidden !important; }
   #printable, #printable *{ visibility:visible !important; }
   #printable{
-    position:static !important; top:auto; left:auto; width:100% !important; z-index:auto;
+    position:static !important; top:auto; left:auto !important; width:100% !important;
   }
   .fab, .toast{ display:none !important; }
 }
@@ -1552,15 +1556,18 @@ function handleExportPdf(){
   };
   window.addEventListener('afterprint', cleanup);
 
-  // On laisse le temps au navigateur de mettre en page le contenu avant d'ouvrir
-  // la boîte de dialogue d'impression (dans laquelle l'utilisateur choisit
-  // "Enregistrer au format PDF" comme destination).
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    window.print();
-    // Filet de sécurité si l'évènement afterprint n'est pas déclenché
-    // (certains navigateurs mobiles ne le supportent pas).
-    setTimeout(cleanup, 5000);
-  }));
+  // IMPORTANT (iOS Safari) : window.print() doit être appelé de façon
+  // SYNCHRONE, dans le même tick que le clic utilisateur. Le moindre report
+  // (requestAnimationFrame, setTimeout, await…) fait perdre à iOS le lien
+  // avec le geste utilisateur et la boîte d'impression n'apparaît jamais.
+  // Comme le contenu vient d'être injecté juste au-dessus de façon synchrone,
+  // le navigateur recalcule automatiquement sa mise en page avant d'imprimer :
+  // aucun délai supplémentaire n'est nécessaire.
+  window.print();
+
+  // Filet de sécurité si l'évènement afterprint n'est pas déclenché
+  // (certains navigateurs mobiles ne le supportent pas).
+  setTimeout(cleanup, 5000);
 }
 
 /* =========================================================================
