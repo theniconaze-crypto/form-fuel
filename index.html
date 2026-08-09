@@ -307,7 +307,30 @@ a{color:inherit;}
 }
 .exo-edit-select:focus, .exo-edit-input:focus{outline:2px solid var(--accent); border-color:var(--accent);}
 .exo-row-overridden{background:rgba(227,167,59,0.14);}
+.exo-row-added{background:rgba(92,139,110,0.14);}
 .exo-overridden-tag{display:inline-block; margin-top:3px; font-size:10.5px; font-weight:700; color:#8A6A1B;}
+.exo-added-tag{display:inline-block; margin-top:3px; font-size:10.5px; font-weight:700; color:#33513E;}
+.exo-table th:nth-child(6), .exo-table td:nth-child(6){width:36px; text-align:center;}
+.exo-remove-btn{
+  background:transparent; border:1.5px solid #D9A99A; color:#B24A34; border-radius:6px;
+  width:30px; height:30px; min-height:30px; font-size:15px; font-weight:700; line-height:1;
+  display:inline-flex; align-items:center; justify-content:center; padding:0;
+}
+.exo-remove-btn:hover{background:rgba(217,88,63,0.12);}
+.exo-remove-btn:disabled{opacity:0.35; cursor:not-allowed;}
+.add-exo-row{
+  margin-top:12px; padding-top:12px; border-top:1px dashed #DED6BE;
+  display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end;
+}
+.add-exo-row .field{flex:1; min-width:150px;}
+.add-exo-row .field label{font-size:10.5px;}
+.add-exo-row select{
+  width:100%; background:#fff; border:1.5px solid #D9D2BC; border-radius:8px; padding:9px 30px 9px 10px;
+  font-size:13.5px; color:var(--ink); min-height:40px;
+  background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6"><path d="M0 0l5 6 5-6z" fill="%236E7568"/></svg>');
+  background-repeat:no-repeat; background-position:right 12px center;
+}
+.day-exo-limit-note{margin-top:12px; padding-top:12px; border-top:1px dashed #DED6BE; font-size:12px; color:var(--ink-dim); font-style:italic;}
 
 /* ---------- suivi ---------- */
 .entry-form{display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:12px; align-items:end;}
@@ -1235,45 +1258,45 @@ const GROUP_META = {
 
 const EXO_DB = {
   pecs: [
-    {n:'Développé couché barre', d:"Allongé sur banc, poussez la barre depuis la poitrine vers le haut."},
-    {n:'Développé incliné haltères', d:"Sur banc incliné à 30°, poussez les haltères au-dessus des épaules."},
-    {n:'Écarté poulie vis-à-vis', d:"Bras tendus, ramenez les poignées devant vous en arc de cercle."},
-    {n:'Pompes (lestées si besoin)', d:"Position de pompe, corps gainé, descendez poitrine proche du sol."},
-    {n:'Dips pectoraux', d:"Buste penché en avant sur barres parallèles, descendez contrôlé."}
+    {n:'Développé couché barre', d:"Allongé sur banc, poussez la barre depuis la poitrine vers le haut.", minLevel:'debutant'},
+    {n:'Développé incliné haltères', d:"Sur banc incliné à 30°, poussez les haltères au-dessus des épaules.", minLevel:'debutant'},
+    {n:'Écarté poulie vis-à-vis', d:"Bras tendus, ramenez les poignées devant vous en arc de cercle.", minLevel:'intermediaire'},
+    {n:'Pompes (lestées si besoin)', d:"Position de pompe, corps gainé, descendez poitrine proche du sol.", minLevel:'debutant'},
+    {n:'Dips pectoraux', d:"Buste penché en avant sur barres parallèles, descendez contrôlé.", minLevel:'intermediaire'}
   ],
   dos: [
-    {n:'Tractions (ou tirage vertical)', d:"Suspendu à la barre, tirez le buste vers le haut, coudes vers le bas."},
-    {n:'Rowing barre buste penché', d:"Dos droit, buste penché, tirez la barre vers le nombril."},
-    {n:'Tirage horizontal poulie basse', d:"Assis, tirez la poignée vers l'abdomen, coudes proches du corps."},
-    {n:'Soulevé de terre', d:"Dos plat, poussez sur les jambes pour soulever la barre du sol."},
-    {n:'Rowing haltère unilatéral', d:"Un genou sur banc, tirez l'haltère vers la hanche."}
+    {n:'Tractions (ou tirage vertical)', d:"Suspendu à la barre, tirez le buste vers le haut, coudes vers le bas.", minLevel:'debutant'},
+    {n:'Rowing barre buste penché', d:"Dos droit, buste penché, tirez la barre vers le nombril.", minLevel:'intermediaire'},
+    {n:'Tirage horizontal poulie basse', d:"Assis, tirez la poignée vers l'abdomen, coudes proches du corps.", minLevel:'debutant'},
+    {n:'Soulevé de terre', d:"Dos plat, poussez sur les jambes pour soulever la barre du sol.", minLevel:'intermediaire'},
+    {n:'Rowing haltère unilatéral', d:"Un genou sur banc, tirez l'haltère vers la hanche.", minLevel:'debutant'}
   ],
   jambes: [
-    {n:'Squat barre', d:"Barre sur le haut du dos, descendez hanches sous les genoux, remontez."},
-    {n:'Presse à cuisses', d:"Assis sur la machine, poussez la plateforme avec les jambes."},
-    {n:'Fentes marchées', d:"Grand pas en avant, descendez le genou arrière près du sol, alternez."},
-    {n:'Leg curl (ischio-jambiers)', d:"Allongé ou assis, fléchissez les jambes contre la résistance."},
-    {n:'Soulevé de terre jambes tendues', d:"Jambes semi-tendues, descendez la barre le long des tibias, dos plat."},
-    {n:'Mollets debout', d:"Montez sur la pointe des pieds avec charge, contrôlez la descente."}
+    {n:'Squat barre', d:"Barre sur le haut du dos, descendez hanches sous les genoux, remontez.", minLevel:'debutant'},
+    {n:'Presse à cuisses', d:"Assis sur la machine, poussez la plateforme avec les jambes.", minLevel:'debutant'},
+    {n:'Fentes marchées', d:"Grand pas en avant, descendez le genou arrière près du sol, alternez.", minLevel:'debutant'},
+    {n:'Leg curl (ischio-jambiers)', d:"Allongé ou assis, fléchissez les jambes contre la résistance.", minLevel:'debutant'},
+    {n:'Soulevé de terre jambes tendues', d:"Jambes semi-tendues, descendez la barre le long des tibias, dos plat.", minLevel:'intermediaire'},
+    {n:'Mollets debout', d:"Montez sur la pointe des pieds avec charge, contrôlez la descente.", minLevel:'debutant'}
   ],
   epaules: [
-    {n:'Développé militaire', d:"Debout ou assis, poussez la barre/haltères au-dessus de la tête."},
-    {n:'Élévations latérales', d:"Bras légèrement fléchis, montez les haltères sur les côtés jusqu'aux épaules."},
-    {n:'Élévations frontales', d:"Montez l'haltère devant vous jusqu'à hauteur d'épaule."},
-    {n:'Oiseau (élévations arrière)', d:"Buste penché, montez les haltères sur les côtés pour cibler l'arrière d'épaule."}
+    {n:'Développé militaire', d:"Debout ou assis, poussez la barre/haltères au-dessus de la tête.", minLevel:'debutant'},
+    {n:'Élévations latérales', d:"Bras légèrement fléchis, montez les haltères sur les côtés jusqu'aux épaules.", minLevel:'debutant'},
+    {n:'Élévations frontales', d:"Montez l'haltère devant vous jusqu'à hauteur d'épaule.", minLevel:'debutant'},
+    {n:'Oiseau (élévations arrière)', d:"Buste penché, montez les haltères sur les côtés pour cibler l'arrière d'épaule.", minLevel:'debutant'}
   ],
   bras: [
-    {n:'Curl biceps barre EZ', d:"Coudes fixes, fléchissez la barre vers les épaules."},
-    {n:'Curl marteau haltères', d:"Paumes face à face, fléchissez les avant-bras."},
-    {n:'Extension triceps poulie haute', d:"Coudes fixes le long du corps, poussez la corde vers le bas."},
-    {n:'Dips triceps (banc)', d:"Mains sur un banc derrière vous, fléchissez les coudes puis poussez."},
-    {n:'Extension triceps nuque haltère', d:"Un haltère à deux mains derrière la tête, tendez les bras vers le haut."}
+    {n:'Curl biceps barre EZ', d:"Coudes fixes, fléchissez la barre vers les épaules.", minLevel:'debutant'},
+    {n:'Curl marteau haltères', d:"Paumes face à face, fléchissez les avant-bras.", minLevel:'debutant'},
+    {n:'Extension triceps poulie haute', d:"Coudes fixes le long du corps, poussez la corde vers le bas.", minLevel:'debutant'},
+    {n:'Dips triceps (banc)', d:"Mains sur un banc derrière vous, fléchissez les coudes puis poussez.", minLevel:'debutant'},
+    {n:'Extension triceps nuque haltère', d:"Un haltère à deux mains derrière la tête, tendez les bras vers le haut.", minLevel:'debutant'}
   ],
   sangle: [
-    {n:'Gainage planche', d:"Corps aligné en appui sur avant-bras et pointes de pieds, maintenez la position."},
-    {n:'Relevés de jambes suspendu', d:"Suspendu à la barre, montez les jambes tendues ou fléchies vers le buste."},
-    {n:'Crunch poulie haute', d:"À genoux face à la poulie, enroulez le buste vers le bassin."},
-    {n:'Gainage latéral', d:"En appui sur un avant-bras de côté, maintenez le bassin gainé et haut."}
+    {n:'Gainage planche', d:"Corps aligné en appui sur avant-bras et pointes de pieds, maintenez la position.", minLevel:'debutant'},
+    {n:'Relevés de jambes suspendu', d:"Suspendu à la barre, montez les jambes tendues ou fléchies vers le buste.", minLevel:'intermediaire'},
+    {n:'Crunch poulie haute', d:"À genoux face à la poulie, enroulez le buste vers le bassin.", minLevel:'debutant'},
+    {n:'Gainage latéral', d:"En appui sur un avant-bras de côté, maintenez le bassin gainé et haut.", minLevel:'debutant'}
   ]
 };
 
@@ -1282,31 +1305,31 @@ const EXO_DB = {
    ski-erg, rowing, wall balls, farmer's carry, burpees, fentes chargées. */
 const EXO_HYROX = {
   jambes: [
-    {n:'Sled Push', d:"Poussez le traîneau chargé sur une distance donnée, pas courts et puissants, buste penché."},
-    {n:'Fentes avant sac lesté (Sandbag Lunges)', d:"Sac de sable sur les épaules, enchaînez les fentes marchées sur la distance."},
-    {n:'Wall Balls', d:"Squat puis lancez le ballon lesté contre le mur à la cible, réceptionnez et enchaînez."},
-    {n:'Burpees Broad Jump', d:"Burpee complet suivi d'un saut en longueur, enchaînez sur la distance."}
+    {n:'Sled Push', d:"Poussez le traîneau chargé sur une distance donnée, pas courts et puissants, buste penché.", minLevel:'debutant'},
+    {n:'Fentes avant sac lesté (Sandbag Lunges)', d:"Sac de sable sur les épaules, enchaînez les fentes marchées sur la distance.", minLevel:'intermediaire'},
+    {n:'Wall Balls', d:"Squat puis lancez le ballon lesté contre le mur à la cible, réceptionnez et enchaînez.", minLevel:'intermediaire'},
+    {n:'Burpees Broad Jump', d:"Burpee complet suivi d'un saut en longueur, enchaînez sur la distance.", minLevel:'intermediaire'}
   ],
   dos: [
-    {n:'Sled Pull', d:"Tirez le traîneau vers vous à la corde, pas en arrière, dos gainé."},
-    {n:'Rowing machine (Rameur)', d:"Sur rameur, poussez avec les jambes puis tirez la poignée vers le buste, enchaînement fluide."},
-    {n:'SkiErg', d:"Debout face à la machine, tirez les poignées vers le bas en engageant le gainage et les dorsaux."},
-    {n:"Farmer's Carry", d:"Un kettlebell ou haltère lourd dans chaque main, marchez sur la distance, gainage serré."}
+    {n:'Sled Pull', d:"Tirez le traîneau vers vous à la corde, pas en arrière, dos gainé.", minLevel:'debutant'},
+    {n:'Rowing machine (Rameur)', d:"Sur rameur, poussez avec les jambes puis tirez la poignée vers le buste, enchaînement fluide.", minLevel:'debutant'},
+    {n:'SkiErg', d:"Debout face à la machine, tirez les poignées vers le bas en engageant le gainage et les dorsaux.", minLevel:'debutant'},
+    {n:"Farmer's Carry", d:"Un kettlebell ou haltère lourd dans chaque main, marchez sur la distance, gainage serré.", minLevel:'debutant'}
   ],
   pecs: [
-    {n:'Wall Balls', d:"Squat puis lancez le ballon lesté contre le mur à la cible, réceptionnez et enchaînez."},
-    {n:'Sled Push', d:"Poussez le traîneau chargé sur une distance donnée, pas courts et puissants, buste penché."},
-    {n:'Pompes rapides', d:"Enchaînez les pompes en rythme soutenu, corps gainé, pour l'endurance haut du corps."}
+    {n:'Wall Balls', d:"Squat puis lancez le ballon lesté contre le mur à la cible, réceptionnez et enchaînez.", minLevel:'intermediaire'},
+    {n:'Sled Push', d:"Poussez le traîneau chargé sur une distance donnée, pas courts et puissants, buste penché.", minLevel:'debutant'},
+    {n:'Pompes rapides', d:"Enchaînez les pompes en rythme soutenu, corps gainé, pour l'endurance haut du corps.", minLevel:'debutant'}
   ],
   epaules: [
-    {n:"Farmer's Carry", d:"Un kettlebell ou haltère lourd dans chaque main, marchez sur la distance, gainage serré."},
-    {n:'SkiErg', d:"Debout face à la machine, tirez les poignées vers le bas en engageant le gainage et les dorsaux."},
-    {n:'Wall Balls', d:"Squat puis lancez le ballon lesté contre le mur à la cible, réceptionnez et enchaînez."}
+    {n:"Farmer's Carry", d:"Un kettlebell ou haltère lourd dans chaque main, marchez sur la distance, gainage serré.", minLevel:'debutant'},
+    {n:'SkiErg', d:"Debout face à la machine, tirez les poignées vers le bas en engageant le gainage et les dorsaux.", minLevel:'debutant'},
+    {n:'Wall Balls', d:"Squat puis lancez le ballon lesté contre le mur à la cible, réceptionnez et enchaînez.", minLevel:'intermediaire'}
   ],
   sangle: [
-    {n:'Burpees Broad Jump', d:"Burpee complet suivi d'un saut en longueur, enchaînez sur la distance."},
-    {n:'Fentes avant sac lesté (Sandbag Lunges)', d:"Sac de sable sur les épaules, enchaînez les fentes marchées sur la distance."},
-    {n:'Rowing machine (Rameur)', d:"Sur rameur, poussez avec les jambes puis tirez la poignée vers le buste, enchaînement fluide."}
+    {n:'Burpees Broad Jump', d:"Burpee complet suivi d'un saut en longueur, enchaînez sur la distance.", minLevel:'intermediaire'},
+    {n:'Fentes avant sac lesté (Sandbag Lunges)', d:"Sac de sable sur les épaules, enchaînez les fentes marchées sur la distance.", minLevel:'intermediaire'},
+    {n:'Rowing machine (Rameur)', d:"Sur rameur, poussez avec les jambes puis tirez la poignée vers le buste, enchaînement fluide.", minLevel:'debutant'}
   ]
 };
 
@@ -1315,42 +1338,66 @@ const EXO_HYROX = {
    thrusters, kettlebell swings, box jumps, tractions, snatch, etc. */
 const EXO_CROSSFIT = {
   jambes: [
-    {n:'Box Jumps', d:"Sautez pieds joints sur la box, extension complète des hanches en haut, redescendez contrôlé."},
-    {n:'Thrusters', d:"Squat avant puis extension explosive pour pousser la barre au-dessus de la tête."},
-    {n:'Kettlebell Swings', d:"Bascule de hanches pour projeter le kettlebell à hauteur d'épaule/tête, dos gainé."},
-    {n:'Wall Balls', d:"Squat puis lancez le ballon lesté contre le mur à la cible, réceptionnez et enchaînez."}
+    {n:'Box Jumps', d:"Sautez pieds joints sur la box, extension complète des hanches en haut, redescendez contrôlé.", minLevel:'intermediaire'},
+    {n:'Thrusters', d:"Squat avant puis extension explosive pour pousser la barre au-dessus de la tête.", minLevel:'intermediaire'},
+    {n:'Kettlebell Swings', d:"Bascule de hanches pour projeter le kettlebell à hauteur d'épaule/tête, dos gainé.", minLevel:'debutant'},
+    {n:'Wall Balls', d:"Squat puis lancez le ballon lesté contre le mur à la cible, réceptionnez et enchaînez.", minLevel:'intermediaire'},
+    {n:'Air Squats', d:"Squat au poids du corps, amplitude complète, rythme soutenu.", minLevel:'debutant'}
   ],
   dos: [
-    {n:'Pull-ups (tractions kipping)', d:"Suspendu à la barre, utilisez l'impulsion du corps pour enchaîner les tractions en rythme."},
-    {n:'Deadlift (CrossFit)', d:"Soulevé de terre technique, charge modérée à lourde, cadence soutenue selon le WOD."},
-    {n:'Rope Climb', d:"Grimpez à la corde en utilisant bras et jambes, redescendez contrôlé."}
+    {n:'Pull-ups (kipping)', d:"Suspendu à la barre, utilisez l'impulsion du corps pour enchaîner les tractions en rythme.", minLevel:'avance'},
+    {n:'Deadlift (CrossFit)', d:"Soulevé de terre technique, charge modérée à lourde, cadence soutenue selon le WOD.", minLevel:'intermediaire'},
+    {n:'Rope Climb', d:"Grimpez à la corde en utilisant bras et jambes, redescendez contrôlé.", minLevel:'avance'},
+    {n:'Ring Rows (rowing suspendu)', d:"Suspendu à des anneaux ou sangles inclinées, tirez la poitrine vers les mains, corps gainé.", minLevel:'debutant'}
   ],
   pecs: [
-    {n:'Push Press', d:"Légère flexion de jambes puis poussez la barre au-dessus de la tête avec l'élan des hanches."},
-    {n:'Ring Dips', d:"En appui sur anneaux, descendez les coudes puis repoussez le corps vers le haut."},
-    {n:'Thrusters', d:"Squat avant puis extension explosive pour pousser la barre au-dessus de la tête."}
+    {n:'Push Press', d:"Légère flexion de jambes puis poussez la barre au-dessus de la tête avec l'élan des hanches.", minLevel:'intermediaire'},
+    {n:'Ring Dips', d:"En appui sur anneaux, descendez les coudes puis repoussez le corps vers le haut.", minLevel:'avance'},
+    {n:'Thrusters', d:"Squat avant puis extension explosive pour pousser la barre au-dessus de la tête.", minLevel:'intermediaire'},
+    {n:'Pompes complètes', d:"Pompes au sol, corps gainé, amplitude complète, rythme soutenu façon WOD.", minLevel:'debutant'}
   ],
   bras: [
-    {n:'Muscle-ups', d:"Traction explosive à la barre ou aux anneaux enchaînée avec un passage en appui dips."},
-    {n:'Ring Dips', d:"En appui sur anneaux, descendez les coudes puis repoussez le corps vers le haut."},
-    {n:'Kettlebell Swings', d:"Bascule de hanches pour projeter le kettlebell à hauteur d'épaule/tête, dos gainé."}
+    {n:'Muscle-ups', d:"Traction explosive à la barre ou aux anneaux enchaînée avec un passage en appui dips.", minLevel:'avance'},
+    {n:'Ring Dips', d:"En appui sur anneaux, descendez les coudes puis repoussez le corps vers le haut.", minLevel:'avance'},
+    {n:'Kettlebell Swings', d:"Bascule de hanches pour projeter le kettlebell à hauteur d'épaule/tête, dos gainé.", minLevel:'debutant'}
   ],
   sangle: [
-    {n:'Toes-to-Bar', d:"Suspendu à la barre, montez les pieds toucher la barre en gainant tout le corps."},
-    {n:'Double-Unders (corde à sauter)', d:"Corde à sauter avec deux passages sous les pieds par saut, rythme soutenu."},
-    {n:'Kettlebell Swings', d:"Bascule de hanches pour projeter le kettlebell à hauteur d'épaule/tête, dos gainé."}
+    {n:'Toes-to-Bar', d:"Suspendu à la barre, montez les pieds toucher la barre en gainant tout le corps.", minLevel:'avance'},
+    {n:'Double-Unders (corde à sauter)', d:"Corde à sauter avec deux passages sous les pieds par saut, rythme soutenu.", minLevel:'intermediaire'},
+    {n:'Kettlebell Swings', d:"Bascule de hanches pour projeter le kettlebell à hauteur d'épaule/tête, dos gainé.", minLevel:'debutant'}
   ]
 };
 
-function repsForGoal(objectif){
-  if(objectif === 'perte') return {reps:'15-20', rest:'45-60 s'};
-  if(objectif === 'prise') return {reps:'8-12', rest:'75-120 s'};
-  return {reps:'10-15', rest:'60-90 s'};
+/* ---- Adaptation reps / repos / séries au profil ----
+   Les répétitions et le repos dépendent avant tout de l'objectif (perte, prise,
+   recomposition, maintien), mais sont affinés selon le niveau : un débutant reste
+   sur des répétitions plus modérées pour sécuriser la technique, tandis qu'un
+   pratiquant avancé peut aller vers des zones plus spécifiques (plus haut en
+   perte, plus bas/lourd en prise). Le nombre de séries dépend du niveau
+   (capacité de récupération/technique), légèrement plafonné en perte de poids
+   pour garder des séances de durée raisonnable malgré les hautes répétitions. */
+function repsForGoal(objectif, niveau){
+  if(objectif === 'perte'){
+    return niveau === 'debutant'
+      ? {reps:'12-15', rest:'45-60 s'}
+      : {reps:'15-20', rest:'30-45 s'};
+  }
+  if(objectif === 'prise'){
+    return niveau === 'avance'
+      ? {reps:'6-10', rest:'90-150 s'}
+      : {reps:'8-12', rest:'75-120 s'};
+  }
+  // recomposition / maintien
+  return niveau === 'debutant'
+    ? {reps:'12-15', rest:'60-90 s'}
+    : {reps:'10-15', rest:'60-90 s'};
 }
-function setsForLevel(niveau){
-  if(niveau === 'debutant') return 3;
-  if(niveau === 'avance') return 5;
-  return 4;
+function setsForLevel(niveau, objectif){
+  let base = 4;
+  if(niveau === 'debutant') base = 3;
+  else if(niveau === 'avance') base = 5;
+  if(objectif === 'perte' && base > 4) base = 4; // volume déjà élevé en répétitions : séances plus courtes
+  return base;
 }
 
 /* ---- Focus de séance « forçable » par jour ----
@@ -1387,9 +1434,40 @@ function muscleOptionsHtml(forcedGroup){
   return html;
 }
 
+const UPPER_BODY_GROUPS = ['pecs','dos','epaules','bras'];
+const LOWER_BODY_GROUPS = ['jambes','sangle'];
+const ALL_MUSCLE_GROUPS = Object.keys(GROUP_META);
+
+/* Détermine la liste des groupes musculaires proposés pour AJOUTER un exercice
+   dans une séance donnée. Sur un focus Full Body (forcé via le sélecteur, ou
+   auto sur les splits ≤3 j/semaine), tous les groupes musculaires sont
+   proposés : l'utilisateur peut cibler n'importe quel muscle, pas seulement
+   ceux déjà présents dans la séance générée. Sur un focus Haut ou Bas du
+   corps (forcé, ou auto comme Push/Pull/Jambes complet), tous les groupes de
+   cette moitié du corps sont proposés, même si la séance générée n'en
+   travaille qu'une partie. Les circuits (Hyrox/CrossFit) gardent leurs
+   stations spécifiques, car leurs bases d'exercices dédiées ne couvrent pas
+   tous les groupes musculaires. */
+function addExerciseGroupChoices(day){
+  if(day.forcedType === 'circuit_training' || day.forcedType === 'circuit_force'){
+    return day.groups;
+  }
+  if(day.forcedType === 'full') return ALL_MUSCLE_GROUPS;
+  if(day.forcedType === 'haut') return UPPER_BODY_GROUPS;
+  if(day.forcedType === 'bas') return LOWER_BODY_GROUPS;
+
+  // Split automatique (non forcé) : catégorie déduite des groupes travaillés.
+  const hasLower = day.groups.includes('jambes');
+  const hasUpper = day.groups.some(g=> UPPER_BODY_GROUPS.includes(g));
+  if(hasLower && hasUpper) return ALL_MUSCLE_GROUPS; // full body
+  if(day.groups.every(g=> UPPER_BODY_GROUPS.includes(g))) return UPPER_BODY_GROUPS;
+  if(day.groups.every(g=> LOWER_BODY_GROUPS.includes(g))) return LOWER_BODY_GROUPS;
+  return day.groups; // filet de sécurité
+}
+
 function trainingParamsForType(typeId, profile){
-  const {reps, rest} = repsForGoal(profile.objectif);
-  const sets = setsForLevel(profile.niveau);
+  const {reps, rest} = repsForGoal(profile.objectif, profile.niveau);
+  const sets = setsForLevel(profile.niveau, profile.objectif);
   if(typeId === 'circuit_training'){
     return {
       reps:'15-20', rest:'20-30 s entre exercices', sets: Math.max(2, sets - 1), circuit:true,
@@ -1405,12 +1483,50 @@ function trainingParamsForType(typeId, profile){
   return {reps, rest, sets, circuit:false, circuitNote:''};
 }
 
-function countForGroup(g, groups, typeId){
+/* Le nombre d'exercices par groupe dépend du split ET du niveau, mais la séance
+   entière ne doit JAMAIS dépasser 6 exercices, quel que soit le niveau (règle
+   produit : lisibilité et faisabilité de la séance avant tout). Chaque groupe
+   travaillé garde 1 exercice garanti ; le reste du budget (max 6 - nb de
+   groupes) est distribué en priorité aux gros groupes (jambes/pecs/dos), puis
+   aux groupes d'isolation s'il reste du budget, avec un plafond de +2 exercices
+   par groupe (3 exercices max sur un même muscle dans la séance). Le niveau
+   module la part de ce budget réellement utilisée : un débutant reste sur un
+   volume réduit (technique, fatigue gérable), un pratiquant avancé va au
+   maximum du budget disponible. Les circuits gardent une station par groupe
+   pour tous les niveaux : c'est le nombre de tours (séries) qui adapte le
+   volume, pas le nombre de stations. */
+const TRAINING_MAX_EXOS_PER_DAY = 6;
+
+function countForGroup(g, groups, typeId, niveau){
   if(typeId === 'circuit_training' || typeId === 'circuit_force'){
-    return 1; // une station par groupe pour enchaîner en circuit
+    return 1;
   }
   const mainGroups = ['jambes','pecs','dos'];
-  return mainGroups.includes(g) ? (groups.length <= 2 ? 3 : 2) : 1;
+  const mains = groups.filter(x=> mainGroups.includes(x));
+  const isolations = groups.filter(x=> !mainGroups.includes(x));
+  const counts = {};
+  groups.forEach(x=> { counts[x] = 1; }); // 1 exercice garanti par groupe travaillé
+
+  let extraBudget = TRAINING_MAX_EXOS_PER_DAY - groups.length;
+  if(extraBudget > 0){
+    const niveauFactor = {debutant:0.5, intermediaire:0.75, avance:1}[niveau] ?? 0.75;
+    let usableExtra = Math.floor(extraBudget * niveauFactor);
+    const CAP_EXTRA = 2; // max +2 exercices par groupe (3 exercices max sur un même muscle)
+
+    let i = 0;
+    while(usableExtra > 0 && mains.some(x=> counts[x] - 1 < CAP_EXTRA)){
+      const cand = mains[i % mains.length];
+      if(counts[cand] - 1 < CAP_EXTRA){ counts[cand]++; usableExtra--; }
+      i++;
+    }
+    i = 0;
+    while(usableExtra > 0 && isolations.some(x=> counts[x] - 1 < CAP_EXTRA)){
+      const cand = isolations[i % isolations.length];
+      if(counts[cand] - 1 < CAP_EXTRA){ counts[cand]++; usableExtra--; }
+      i++;
+    }
+  }
+  return counts[g];
 }
 
 function buildSplit(days){
@@ -1444,16 +1560,30 @@ function buildSplit(days){
   return [PPL[0], PPL[1], PPL[2], PPL[0], PPL[1], PPL[2]];
 }
 
-function exoListForGroup(group, typeId){
-  /* Circuit training → base Hyrox ; Circuit force → base CrossFit ; sinon base musculation classique.
-     Repli sur EXO_DB si le groupe n'a pas d'entrée dédiée dans la base circuit. */
-  if(typeId === 'circuit_training') return EXO_HYROX[group] || EXO_DB[group] || [];
-  if(typeId === 'circuit_force') return EXO_CROSSFIT[group] || EXO_DB[group] || [];
-  return EXO_DB[group] || [];
+const NIVEAU_RANK = {debutant:1, intermediaire:2, avance:3};
+
+/* Filtre une base d'exercices selon le niveau du profil : un débutant n'obtient
+   pas de mouvements taggés 'intermediaire'/'avance' (ex. kipping pull-ups, muscle-ups,
+   rope climb…). Si le filtre ne laisse aucun exercice pour ce groupe (filet de
+   sécurité), on retombe sur la liste complète plutôt que de ne rien proposer. */
+function filterByNiveau(list, niveau){
+  const rank = NIVEAU_RANK[niveau] || NIVEAU_RANK.intermediaire;
+  const filtered = list.filter(x=> (NIVEAU_RANK[x.minLevel || 'debutant'] || 1) <= rank);
+  return filtered.length ? filtered : list;
 }
 
-function pickExosForGroup(group, count, offset, typeId){
-  const list = exoListForGroup(group, typeId);
+function exoListForGroup(group, typeId, niveau){
+  /* Circuit training → base Hyrox ; Circuit force → base CrossFit ; sinon base musculation classique.
+     Repli sur EXO_DB si le groupe n'a pas d'entrée dédiée dans la base circuit. */
+  let list;
+  if(typeId === 'circuit_training') list = EXO_HYROX[group] || EXO_DB[group] || [];
+  else if(typeId === 'circuit_force') list = EXO_CROSSFIT[group] || EXO_DB[group] || [];
+  else list = EXO_DB[group] || [];
+  return niveau ? filterByNiveau(list, niveau) : list;
+}
+
+function pickExosForGroup(group, count, offset, typeId, niveau){
+  const list = exoListForGroup(group, typeId, niveau);
   const out = [];
   for(let i=0; i<count; i++){
     out.push(list[(offset + trainingSeed + i) % list.length]);
@@ -1466,6 +1596,8 @@ function generateTrainingPlan(profile){
   const baseSplit = buildSplit(days);
   const overrides = Array.isArray(profile.trainingOverride) ? profile.trainingOverride : [];
   const exoOverrides = (profile.exerciseOverride && typeof profile.exerciseOverride === 'object') ? profile.exerciseOverride : {};
+  const exoRemoved = (profile.exerciseRemoved && typeof profile.exerciseRemoved === 'object') ? profile.exerciseRemoved : {};
+  const exoAdded = (profile.exerciseAdded && typeof profile.exerciseAdded === 'object') ? profile.exerciseAdded : {};
 
   return baseSplit.map((day, dayIdx)=>{
     const forcedType = overrides[dayIdx];
@@ -1481,8 +1613,8 @@ function generateTrainingPlan(profile){
     const exercises = [];
     let exoIdx = 0;
     groups.forEach((g, gi)=>{
-      const count = countForGroup(g, groups, typeId);
-      const picked = pickExosForGroup(g, count, dayIdx + gi, typeId);
+      const count = countForGroup(g, groups, typeId, profile.niveau);
+      const picked = pickExosForGroup(g, count, dayIdx + gi, typeId, profile.niveau);
       picked.forEach(exo=>{
         /* Réglages forcés par l'utilisateur pour cet exercice précis : muscle ciblé,
            exo choisi (parmi la base correspondant au focus + au muscle), séries, reps, repos. */
@@ -1490,19 +1622,19 @@ function generateTrainingPlan(profile){
         const effectiveGroup = (ov && ov.group && GROUP_META[ov.group]) ? ov.group : g;
         let finalName, finalDesc;
         if(effectiveGroup !== g){
-          const groupList = exoListForGroup(effectiveGroup, typeId);
+          const groupList = exoListForGroup(effectiveGroup, typeId, profile.niveau);
           const found = (ov && ov.exo) ? groupList.find(x=> x.n === ov.exo) : null;
           if(found){
             finalName = found.n; finalDesc = found.d;
           } else {
-            const autoPick = pickExosForGroup(effectiveGroup, 1, dayIdx + exoIdx, typeId)[0];
+            const autoPick = pickExosForGroup(effectiveGroup, 1, dayIdx + exoIdx, typeId, profile.niveau)[0];
             finalName = autoPick ? autoPick.n : exo.n;
             finalDesc = autoPick ? autoPick.d : exo.d;
           }
         } else {
           finalName = exo.n; finalDesc = exo.d;
           if(ov && ov.exo){
-            const found = exoListForGroup(g, typeId).find(x=> x.n === ov.exo);
+            const found = exoListForGroup(g, typeId, profile.niveau).find(x=> x.n === ov.exo);
             if(found){ finalName = found.n; finalDesc = found.d; }
           }
         }
@@ -1519,7 +1651,46 @@ function generateTrainingPlan(profile){
         exoIdx++;
       });
     });
-    return {name, groups, exercises, circuit, circuitNote, forcedType: typeId};
+
+    /* Exercices supprimés par l'utilisateur pour ce jour : on les retire de la
+       séance générée automatiquement (identifiés par leur exoIndex d'origine). */
+    const removedList = Array.isArray(exoRemoved[dayIdx]) ? exoRemoved[dayIdx] : [];
+    let finalExercises = removedList.length
+      ? exercises.filter(e=> !removedList.includes(e.exoIndex))
+      : exercises;
+
+    /* Exercices ajoutés manuellement par l'utilisateur pour ce jour : chaque
+       ajout est décrit par son propre groupe musculaire + exercice choisi dans
+       la base correspondante, avec un identifiant unique (indépendant de la
+       rotation automatique) pour pouvoir lui appliquer des réglages séries/
+       reps/repos via le même mécanisme d'override que les exercices auto. */
+    const addedList = Array.isArray(exoAdded[dayIdx]) ? exoAdded[dayIdx] : [];
+    addedList.forEach(added=>{
+      const group = GROUP_META[added.group] ? added.group : (groups[0] || 'sangle');
+      const list = exoListForGroup(group, typeId, profile.niveau);
+      const chosen = (added.exo && list.find(x=> x.n === added.exo)) || list[0];
+      if(!chosen) return;
+      const ov = exoOverrides[`${dayIdx}_${added.id}`] || null;
+      let finalName = chosen.n, finalDesc = chosen.d;
+      if(ov && ov.exo){
+        const found = list.find(x=> x.n === ov.exo);
+        if(found){ finalName = found.n; finalDesc = found.d; }
+      }
+      const effectiveGroup = (ov && ov.group && GROUP_META[ov.group]) ? ov.group : group;
+      finalExercises.push({
+        group: effectiveGroup, exoIndex: added.id, typeId,
+        name: finalName, desc: finalDesc,
+        sets: (ov && ov.sets) ? ov.sets : sets,
+        reps: (ov && ov.reps) ? ov.reps : reps,
+        rest: (ov && ov.rest) ? ov.rest : rest,
+        autoName: chosen.n, autoGroup: group, autoSets: sets, autoReps: reps, autoRest: rest,
+        groupOverridden: !!(ov && ov.group),
+        overridden: !!ov,
+        isAdded: true
+      });
+    });
+
+    return {name, groups, exercises: finalExercises, circuit, circuitNote, forcedType: typeId};
   });
 }
 
@@ -1566,6 +1737,67 @@ function bodySVG(activeGroups){
   </svg>`;
 }
 
+/* ---- Ajout / suppression manuelle d'un exercice dans une séance ----
+   L'utilisateur peut personnaliser son programme au-delà des réglages
+   fins (séries/reps/repos) : retirer un exercice qui ne lui convient pas,
+   ou en ajouter un dans un groupe musculaire de son choix — toujours dans
+   la limite de 6 exercices par séance et d'au moins 1. Ces actions sont
+   sauvegardées immédiatement (comme le focus de séance ou le reset),
+   indépendamment du bouton "Enregistrer mes réglages d'exercices" qui ne
+   couvre que les ajustements séries/reps/repos/exercice/muscle. */
+async function handleRemoveExercise(profile, dayIdx, exoIndex){
+  const days = generateTrainingPlan(profile);
+  const day = days[dayIdx];
+  if(!day || day.exercises.length <= 1){
+    showToast('Une séance doit garder au moins un exercice.');
+    return;
+  }
+  const target = day.exercises.find(e=> e.exoIndex === exoIndex);
+  const key = String(dayIdx);
+
+  if(target && target.isAdded){
+    const addedList = Array.isArray(profile.exerciseAdded && profile.exerciseAdded[key]) ? profile.exerciseAdded[key] : [];
+    profile.exerciseAdded = profile.exerciseAdded && typeof profile.exerciseAdded === 'object' ? profile.exerciseAdded : {};
+    profile.exerciseAdded[key] = addedList.filter(a=> a.id !== exoIndex);
+    if(!profile.exerciseAdded[key].length) delete profile.exerciseAdded[key];
+    if(!Object.keys(profile.exerciseAdded).length) delete profile.exerciseAdded;
+  } else {
+    profile.exerciseRemoved = profile.exerciseRemoved && typeof profile.exerciseRemoved === 'object' ? profile.exerciseRemoved : {};
+    const removedList = Array.isArray(profile.exerciseRemoved[key]) ? profile.exerciseRemoved[key] : [];
+    if(!removedList.includes(exoIndex)) removedList.push(exoIndex);
+    profile.exerciseRemoved[key] = removedList;
+  }
+  if(profile.exerciseOverride){
+    delete profile.exerciseOverride[`${dayIdx}_${exoIndex}`];
+    if(!Object.keys(profile.exerciseOverride).length) delete profile.exerciseOverride;
+  }
+
+  const saved = await saveProfile(profile);
+  state.profile = profile;
+  renderTraining(profile);
+  showToast(saved ? 'Exercice supprimé ✅' : 'Supprimé, mais la sauvegarde a échoué ⚠️');
+}
+
+async function handleAddExercise(profile, dayIdx, group, exoName){
+  const days = generateTrainingPlan(profile);
+  const day = days[dayIdx];
+  if(!day || day.exercises.length >= TRAINING_MAX_EXOS_PER_DAY){
+    showToast(`Une séance ne peut pas dépasser ${TRAINING_MAX_EXOS_PER_DAY} exercices.`);
+    return;
+  }
+  profile.exerciseAdded = profile.exerciseAdded && typeof profile.exerciseAdded === 'object' ? profile.exerciseAdded : {};
+  const key = String(dayIdx);
+  const list = Array.isArray(profile.exerciseAdded[key]) ? profile.exerciseAdded[key] : [];
+  const id = 'a' + Math.random().toString(36).slice(2, 8);
+  list.push({id, group, exo: exoName});
+  profile.exerciseAdded[key] = list;
+
+  const saved = await saveProfile(profile);
+  state.profile = profile;
+  renderTraining(profile);
+  showToast(saved ? 'Exercice ajouté ✅' : 'Ajouté, mais la sauvegarde a échoué ⚠️');
+}
+
 function renderTraining(profile){
   const container = document.getElementById('trainingContent');
   if(!profile){
@@ -1573,7 +1805,7 @@ function renderTraining(profile){
     return;
   }
   const days = generateTrainingPlan(profile);
-  const {reps} = repsForGoal(profile.objectif);
+  const {reps} = repsForGoal(profile.objectif, profile.niveau);
   const niveauLabel = {debutant:'Débutant', intermediaire:'Intermédiaire', avance:'Avancé'}[profile.niveau];
   const objLabel = {perte:'Perte de poids', prise:'Prise de masse', recomposition:'Recomposition (léger déficit)', maintien:'Maintien'}[profile.objectif];
   const overrides = Array.isArray(profile.trainingOverride) ? profile.trainingOverride : [];
@@ -1584,17 +1816,23 @@ function renderTraining(profile){
   let daysHtml = '';
   days.forEach((day, dayIdx)=>{
     const dayRest = day.exercises[0] ? day.exercises[0].rest : '';
+    const canRemove = day.exercises.length > 1;
+    const canAdd = day.exercises.length < TRAINING_MAX_EXOS_PER_DAY;
     const rows = day.exercises.map(e=>{
-      const list = exoListForGroup(e.group, e.typeId);
+      const list = exoListForGroup(e.group, e.typeId, profile.niveau);
       const exoOptions = `<option value="">Automatique (rotation)</option>` +
         list.map(x=> `<option value="${escapeHtml(x.n)}" ${e.overridden && e.name === x.n ? 'selected' : ''}>${escapeHtml(x.n)}</option>`).join('');
+      const rowClass = e.isAdded ? 'exo-row-added' : (e.overridden ? 'exo-row-overridden' : '');
+      const tag = e.isAdded
+        ? `<span class="exo-added-tag">➕ Ajouté manuellement</span>`
+        : (e.overridden ? `<span class="exo-overridden-tag">🔒 Réglages forcés</span>` : '');
       return `
-      <tr class="${e.overridden ? 'exo-row-overridden' : ''}">
+      <tr class="${rowClass}">
         <td>
           <div class="exo-current-name">${e.name}</div>
           <select class="exo-edit-select" data-field="exo" data-day-index="${dayIdx}" data-exo-index="${e.exoIndex}" data-default="">${exoOptions}</select>
           <div class="exo-desc">${e.desc}</div>
-          ${e.overridden ? `<span class="exo-overridden-tag">🔒 Réglages forcés</span>` : ''}
+          ${tag}
         </td>
         <td>
           <div class="muscle-tag" style="margin-bottom:4px;"><span class="dot" style="background:${GROUP_META[e.group].color};"></span>${GROUP_META[e.group].label}</div>
@@ -1603,8 +1841,23 @@ function renderTraining(profile){
         <td><input type="number" min="1" max="12" class="exo-edit-input" data-field="sets" data-day-index="${dayIdx}" data-exo-index="${e.exoIndex}" data-default="${e.autoSets}" value="${e.sets}"></td>
         <td><input type="text" class="exo-edit-input" data-field="reps" data-day-index="${dayIdx}" data-exo-index="${e.exoIndex}" data-default="${escapeHtml(e.autoReps)}" value="${escapeHtml(e.reps)}"></td>
         <td><input type="text" class="exo-edit-input" data-field="rest" data-day-index="${dayIdx}" data-exo-index="${e.exoIndex}" data-default="${escapeHtml(e.autoRest)}" value="${escapeHtml(e.rest)}"></td>
+        <td><button type="button" class="exo-remove-btn remove-exo-btn" data-day-index="${dayIdx}" data-exo-index="${e.exoIndex}" ${canRemove ? '' : 'disabled'} title="Supprimer cet exercice">✕</button></td>
       </tr>`;
     }).join('');
+    const groupSelectOptions = addExerciseGroupChoices(day).map(g=> `<option value="${g}">${GROUP_META[g].label}</option>`).join('');
+    const addRowHtml = canAdd
+      ? `<div class="add-exo-row" data-day-index="${dayIdx}">
+          <div class="field">
+            <label>Groupe musculaire</label>
+            <select class="add-exo-group" data-day-index="${dayIdx}">${groupSelectOptions}</select>
+          </div>
+          <div class="field">
+            <label>Exercice</label>
+            <select class="add-exo-name" data-day-index="${dayIdx}"></select>
+          </div>
+          <button type="button" class="btn btn-ghost btn-sm add-exo-btn" data-day-index="${dayIdx}" style="border-color:#D9D2BC; color:var(--ink);">➕ Ajouter un exercice</button>
+        </div>`
+      : `<div class="day-exo-limit-note">Cette séance a atteint le maximum de ${TRAINING_MAX_EXOS_PER_DAY} exercices. Supprime-en un pour pouvoir en ajouter un autre.</div>`;
     daysHtml += `
       <div class="day-card">
         <h3>${day.name}</h3>
@@ -1612,11 +1865,12 @@ function renderTraining(profile){
         <div class="day-body">
           <div class="silhouette-box">${bodySVG(day.groups)}</div>
           <table class="exo-table">
-            <thead><tr><th>Exercice</th><th>Muscle</th><th>Séries</th><th>Reps</th><th>Repos</th></tr></thead>
+            <thead><tr><th>Exercice</th><th>Muscle</th><th>Séries</th><th>Reps</th><th>Repos</th><th></th></tr></thead>
             <tbody>${rows}</tbody>
           </table>
         </div>
         ${day.circuit ? `<p class="recipe-adjust" style="margin-top:10px;">${day.circuitNote}</p>` : ''}
+        ${addRowHtml}
       </div>`;
   });
 
@@ -1624,6 +1878,19 @@ function renderTraining(profile){
     ? `<div class="ok-box">🏃 Ajoute 20 à 30 min de cardio (marche rapide, vélo, rameur) 2 à 3 fois par semaine, en fin de séance ou les jours de repos, pour accélérer le déficit calorique sans épuiser les jambes.</div>`
     : profile.objectif === 'recomposition'
     ? `<div class="ok-box">🏃 Ajoute 15 à 20 min de cardio léger à modéré (marche, vélo) 2 fois par semaine pour creuser légèrement le déficit sans nuire à la récupération musculaire.</div>`
+    : '';
+
+  /* Le niveau d'activité quotidien (métier physique, sédentarité...) n'influence pas
+     le choix des exercices, mais pèse sur la charge totale à récupérer : on croise
+     ce facteur avec la fréquence d'entraînement pour alerter sur un risque de
+     surmenage (activité déjà élevée + beaucoup de séances) ou encourager un peu
+     plus de mouvement au quotidien (activité faible + peu de séances). */
+  const activiteVal = parseFloat(profile.activite);
+  const joursNum = parseInt(profile.jours, 10);
+  const activityTip = (activiteVal >= 1.725 && joursNum >= 5)
+    ? `<div class="warn-box">⚠️ Ton quotidien est déjà physiquement exigeant et tu prévois ${joursNum} séances par semaine : sois attentif·ve aux signaux de fatigue (sommeil, courbatures qui persistent) et n'hésite pas à alléger une séance ou insérer un jour de repos supplémentaire si besoin.</div>`
+    : (activiteVal <= 1.2 && joursNum <= 3)
+    ? `<div class="ok-box">🚶 En dehors de tes séances, essaie d'ajouter un peu de marche ou de mouvement au quotidien : cela soutient la récupération et la santé générale sans ajouter de fatigue musculaire supplémentaire.</div>`
     : '';
 
   const dayTypeEditorHtml = `
@@ -1682,6 +1949,37 @@ function renderTraining(profile){
     });
   }
 
+  /* ---- Ajouter / supprimer un exercice dans une séance ---- */
+  const fillAddExoNameSelect = (dayIdx)=>{
+    const groupSel = document.querySelector(`.add-exo-group[data-day-index="${dayIdx}"]`);
+    const nameSel = document.querySelector(`.add-exo-name[data-day-index="${dayIdx}"]`);
+    if(!groupSel || !nameSel) return;
+    const list = exoListForGroup(groupSel.value, days[dayIdx].forcedType, profile.niveau);
+    nameSel.innerHTML = list.map(x=> `<option value="${escapeHtml(x.n)}">${escapeHtml(x.n)}</option>`).join('');
+  };
+  document.querySelectorAll('.add-exo-group').forEach(groupSel=>{
+    fillAddExoNameSelect(groupSel.dataset.dayIndex);
+    groupSel.addEventListener('change', ()=> fillAddExoNameSelect(groupSel.dataset.dayIndex));
+  });
+  document.querySelectorAll('.add-exo-btn').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const dayIdx = parseInt(btn.dataset.dayIndex, 10);
+      const groupSel = document.querySelector(`.add-exo-group[data-day-index="${dayIdx}"]`);
+      const nameSel = document.querySelector(`.add-exo-name[data-day-index="${dayIdx}"]`);
+      if(!groupSel || !nameSel || !nameSel.value) return;
+      await handleAddExercise(profile, dayIdx, groupSel.value, nameSel.value);
+    });
+  });
+  document.querySelectorAll('.remove-exo-btn').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      if(btn.disabled) return;
+      const dayIdx = parseInt(btn.dataset.dayIndex, 10);
+      const exoIndexRaw = btn.dataset.exoIndex;
+      const exoIndex = /^\d+$/.test(exoIndexRaw) ? parseInt(exoIndexRaw, 10) : exoIndexRaw;
+      await handleRemoveExercise(profile, dayIdx, exoIndex);
+    });
+  });
+
   document.querySelectorAll('.exo-edit-select[data-field="group"]').forEach(groupSel=>{
     groupSel.addEventListener('change', ()=>{
       const dayIdx = groupSel.dataset.dayIndex, exoIdx = groupSel.dataset.exoIndex;
@@ -1694,7 +1992,7 @@ function renderTraining(profile){
       }
       const exoSel = document.querySelector(`.exo-edit-select[data-field="exo"][data-day-index="${dayIdx}"][data-exo-index="${exoIdx}"]`);
       if(exoSel){
-        const list = exoListForGroup(displayGroup, typeId);
+        const list = exoListForGroup(displayGroup, typeId, profile.niveau);
         exoSel.innerHTML = `<option value="">Automatique (rotation)</option>` +
           list.map(x=> `<option value="${escapeHtml(x.n)}">${escapeHtml(x.n)}</option>`).join('');
       }
@@ -1708,17 +2006,26 @@ function renderTraining(profile){
       const newOverrides = [];
       selects.forEach(sel=>{ newOverrides[parseInt(sel.dataset.dayIndex, 10)] = sel.value || null; });
 
-      /* Si le focus d'un jour change, les réglages d'exercices forcés pour ce
-         jour ne correspondent plus forcément aux bons groupes/exercices : on les efface. */
+      /* Si le focus d'un jour change, les réglages d'exercices forcés, les
+         exercices supprimés et les exercices ajoutés pour ce jour ne
+         correspondent plus forcément aux bons groupes/exercices : on les efface. */
       const prevOverrides = Array.isArray(profile.trainingOverride) ? profile.trainingOverride : [];
       const exoOv = (profile.exerciseOverride && typeof profile.exerciseOverride === 'object') ? {...profile.exerciseOverride} : {};
+      const exoRem = (profile.exerciseRemoved && typeof profile.exerciseRemoved === 'object') ? {...profile.exerciseRemoved} : {};
+      const exoAdd = (profile.exerciseAdded && typeof profile.exerciseAdded === 'object') ? {...profile.exerciseAdded} : {};
       newOverrides.forEach((val, idx)=>{
         if((prevOverrides[idx] || null) !== (val || null)){
           Object.keys(exoOv).forEach(key=>{ if(key.startsWith(`${idx}_`)) delete exoOv[key]; });
+          delete exoRem[String(idx)];
+          delete exoAdd[String(idx)];
         }
       });
       profile.exerciseOverride = Object.keys(exoOv).length ? exoOv : undefined;
       if(!profile.exerciseOverride) delete profile.exerciseOverride;
+      profile.exerciseRemoved = Object.keys(exoRem).length ? exoRem : undefined;
+      if(!profile.exerciseRemoved) delete profile.exerciseRemoved;
+      profile.exerciseAdded = Object.keys(exoAdd).length ? exoAdd : undefined;
+      if(!profile.exerciseAdded) delete profile.exerciseAdded;
 
       profile.trainingOverride = newOverrides.some(v=> v) ? newOverrides : undefined;
       if(!profile.trainingOverride) delete profile.trainingOverride;
