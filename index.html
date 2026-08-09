@@ -266,28 +266,14 @@ a{color:inherit;}
 .silhouette-legend .chip{display:flex; align-items:center; gap:6px; font-size:11px; background:#fff; border:1px solid #DED6BE; border-radius:20px; padding:4px 9px;}
 
 /* ---------- fab ---------- */
-.fab{
-  position:fixed; right:calc(22px + env(safe-area-inset-right)); bottom:calc(22px + env(safe-area-inset-bottom)); z-index:40;
-  box-shadow:0 10px 24px rgba(0,0,0,0.4);
-}
+.export-bar{display:flex; justify-content:flex-end; margin-bottom:2px;}
+.export-bar .btn{width:auto;}
+@media (max-width:600px){ .export-bar .btn{width:100%;} }
 
-/* ---------- printable (used only for pdf export, hidden on screen) ---------- */
-/* IMPORTANT : pas de position:fixed ni de z-index négatif ici — sur iOS Safari,
-   WebKit ne peint jamais un élément fixed placé en arrière-plan permanent, ce qui
-   fait que le contenu n'apparaît pas du tout à l'impression / export PDF. On le
-   place plutôt hors-écran en position:absolute (normalement peint, juste décalé). */
-#printable{position:absolute; top:0; left:-99999px; width:760px; background:#fff; color:#222; font-family:var(--font-body);}
-#printable h1,#printable h2,#printable h3{font-family:var(--font-display);}
-
-/* ---------- impression native du navigateur (export PDF) ---------- */
+/* ---------- impression (fenêtre dédiée ouverte par les boutons d'export) ---------- */
 @media print{
   @page{ margin:14mm; }
-  body *{ visibility:hidden !important; }
-  #printable, #printable *{ visibility:visible !important; }
-  #printable{
-    position:static !important; top:auto; left:auto !important; width:100% !important;
-  }
-  .fab, .toast{ display:none !important; }
+  .print-toolbar{ display:none !important; }
 }
 
 .toast{
@@ -424,11 +410,17 @@ a{color:inherit;}
 
       <!-- ===== NUTRITION ===== -->
       <section id="tab-nutrition" class="tab-panel">
+        <div class="export-bar">
+          <button class="btn btn-accent" id="exportNutritionBtn">📄 Exporter le plan nutrition (PDF)</button>
+        </div>
         <div id="nutritionContent"></div>
       </section>
 
       <!-- ===== TRAINING ===== -->
       <section id="tab-training" class="tab-panel">
+        <div class="export-bar">
+          <button class="btn btn-accent" id="exportTrainingBtn">📄 Exporter le programme entraînement (PDF)</button>
+        </div>
         <div id="trainingContent"></div>
       </section>
 
@@ -460,10 +452,9 @@ a{color:inherit;}
     </main>
   </div>
 
-  <button class="btn btn-accent fab" id="exportPdfBtn">🖨️ Imprimer / Exporter en PDF</button>
 </div>
 
-<div id="printable"></div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -1452,9 +1443,79 @@ async function handleDeleteProfile(){
 
 /* =========================================================================
    EXPORT PDF
+   Stratégie : on ouvre une fenêtre/onglet dédié·e contenant uniquement le
+   contenu à imprimer, avec un vrai bouton "Imprimer" que l'utilisateur tape
+   lui-même. C'est la méthode la plus fiable sur iOS Safari : contrairement à
+   un window.print() déclenché sur la page principale (bloqué ou muet sur de
+   nombreux iPhone, notamment avec du contenu masqué via CSS), ce bouton est
+   un geste utilisateur direct et sans ambiguïté, donc jamais bloqué.
 ========================================================================= */
-function buildPrintableHTML(profile, plan, history){
-  const days = generateTrainingPlan(profile);
+function buildPrintDocument(title, bodyHtml){
+  return `<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${escapeHtml(title)}</title>
+<style>
+  *{box-sizing:border-box;}
+  html,body{margin:0; padding:0; background:#fff;}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Inter',Arial,sans-serif; color:#222;}
+  h1,h2,h3{font-family:-apple-system,BlinkMacSystemFont,'Oswald',Arial,sans-serif;}
+  .print-toolbar{
+    position:sticky; top:0; z-index:10;
+    background:#F2C438; color:#2A2410;
+    padding:14px 16px; padding-top:calc(14px + env(safe-area-inset-top));
+    display:flex; justify-content:space-between; align-items:center; gap:12px;
+    font-weight:700; font-size:14px;
+  }
+  .print-toolbar button{
+    border:none; background:#2A2410; color:#F2C438; font-weight:700;
+    padding:12px 18px; border-radius:8px; font-size:15px; min-height:44px;
+    -webkit-appearance:none; appearance:none;
+  }
+  @media print{
+    .print-toolbar{ display:none !important; }
+    @page{ margin:14mm; }
+  }
+</style>
+</head>
+<body>
+  <div class="print-toolbar">
+    <span>${escapeHtml(title)}</span>
+    <button type="button" onclick="window.print()">🖨️ Imprimer / Enregistrer en PDF</button>
+  </div>
+  ${bodyHtml}
+</body>
+</html>`;
+}
+
+function openPrintWindow(title, bodyHtml){
+  const win = window.open('', '_blank');
+  if(!win){
+    showToast('Autorise les fenêtres pop-up pour exporter en PDF (réglage Safari).');
+    return;
+  }
+  win.document.open();
+  win.document.write(buildPrintDocument(title, bodyHtml));
+  win.document.close();
+  win.focus();
+}
+
+function buildDocHeaderHtml(profile, subtitle){
+  return `
+    <div style="padding:28px 28px 0;">
+      <div style="display:flex;align-items:center;gap:14px;border-bottom:3px solid #F2C438;padding-bottom:14px;margin-bottom:20px;">
+        <div style="width:44px;height:44px;background:#F2C438;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;">F&amp;F</div>
+        <div>
+          <h1 style="margin:0;font-size:21px;text-transform:uppercase;">Form &amp; Fuel — Plan de ${escapeHtml(profile.prenom)}</h1>
+          <p style="margin:2px 0 0;color:#666;font-size:12px;">${subtitle} · Généré le ${new Date().toLocaleDateString('fr-FR')}</p>
+        </div>
+      </div>
+    </div>`;
+}
+
+function buildNutritionPrintableHTML(profile, plan, history){
   const objLabel = {perte:'Perte de poids', prise:'Prise de masse', maintien:'Maintien / recomposition'}[profile.objectif];
   let totalRecipeProteinPdf = 0;
   const mealsHtmlPdf = MEALS.map((m,i)=>{
@@ -1472,16 +1533,6 @@ function buildPrintableHTML(profile, plan, history){
   }).join('');
   const proteinRatioPdf = plan.proteinG > 0 ? totalRecipeProteinPdf / plan.proteinG : 1;
   const coherenceHtmlPdf = `<p style="margin:6px 0 0;font-size:11.5px;color:${proteinRatioPdf >= 0.85 ? '#33513E' : '#7A3A28'};">${proteinRatioPdf >= 0.85 ? '✅' : '⚠️'} Ces recettes couvrent environ ${totalRecipeProteinPdf} g de protéines sur les ${plan.proteinG} g visés par jour.</p>`;
-  const daysHtml = days.map(day=>{
-    const rows = day.exercises.map(e=> `<tr><td>${e.name}</td><td>${GROUP_META[e.group].label}</td><td>${e.sets}</td><td>${e.reps}</td><td>${e.rest}</td></tr>`).join('');
-    return `<div style="page-break-inside:avoid; break-inside:avoid; margin-bottom:14px;">
-      <h3 style="margin-top:18px;">${day.name}</h3>
-      <table style="width:100%;border-collapse:collapse;font-size:12px;">
-        <thead><tr style="background:#eee;"><th style="text-align:left;padding:4px;">Exercice</th><th style="text-align:left;padding:4px;">Muscle</th><th style="padding:4px;">Séries</th><th style="padding:4px;">Reps</th><th style="padding:4px;">Repos</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-      </div>`;
-  }).join('');
 
   let historyHtml = '';
   if(history && history.length){
@@ -1493,17 +1544,9 @@ function buildPrintableHTML(profile, plan, history){
       </table>`;
   }
 
-  return `
-    <div style="padding:36px; font-family:Inter,sans-serif; color:#222;">
-      <div style="display:flex;align-items:center;gap:14px;border-bottom:3px solid #F2C438;padding-bottom:14px;margin-bottom:20px;">
-        <div style="width:44px;height:44px;background:#F2C438;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;font-family:Oswald,sans-serif;">F&amp;F</div>
-        <div>
-          <h1 style="margin:0;font-size:22px;font-family:Oswald,sans-serif;text-transform:uppercase;">Form &amp; Fuel — Plan de ${escapeHtml(profile.prenom)}</h1>
-          <p style="margin:2px 0 0;color:#666;font-size:12px;">Objectif : ${objLabel} · ${profile.jours} séances / semaine · Généré le ${new Date().toLocaleDateString('fr-FR')}</p>
-        </div>
-      </div>
-
-      <h2 style="font-family:Oswald,sans-serif;">Bilan métabolique</h2>
+  return buildDocHeaderHtml(profile, `Plan nutrition · Objectif : ${objLabel}`) + `
+    <div style="padding:0 28px 32px;">
+      <h2 style="margin-top:0;">Bilan métabolique</h2>
       <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:18px;">
         <tr><td style="padding:4px;font-weight:700;">Métabolisme de base</td><td style="padding:4px;">${plan.bmr} kcal</td></tr>
         <tr><td style="padding:4px;font-weight:700;">Dépense totale (TDEE)</td><td style="padding:4px;">${plan.tdee} kcal</td></tr>
@@ -1513,61 +1556,51 @@ function buildPrintableHTML(profile, plan, history){
         <tr><td style="padding:4px;font-weight:700;">Lipides</td><td style="padding:4px;">${plan.fatG} g (${plan.fatPct}%)</td></tr>
       </table>
 
-      <div style="page-break-before:always; break-before:page; padding-top:4px;">
-        <p style="margin:0 0 14px;font-size:11px;color:#999;text-transform:uppercase;letter-spacing:1px;">Form &amp; Fuel · Plan de ${escapeHtml(profile.prenom)}</p>
-        <h2 style="font-family:Oswald,sans-serif;margin-top:0;">Plan nutritionnel — recettes du jour</h2>
-        ${mealsHtmlPdf}
-        ${coherenceHtmlPdf}
-      </div>
+      <h2>Recettes du jour</h2>
+      ${mealsHtmlPdf}
+      ${coherenceHtmlPdf}
 
-      <div style="page-break-before:always; break-before:page; padding-top:4px;">
-        <p style="margin:0 0 14px;font-size:11px;color:#999;text-transform:uppercase;letter-spacing:1px;">Form &amp; Fuel · Plan de ${escapeHtml(profile.prenom)}</p>
-        <h2 style="font-family:Oswald,sans-serif;margin-top:0;">Programme d'entraînement</h2>
-        ${daysHtml}
-      </div>
-
-      ${historyHtml ? `<div style="page-break-before:always; break-before:page; padding-top:4px;">
-        <p style="margin:0 0 14px;font-size:11px;color:#999;text-transform:uppercase;letter-spacing:1px;">Form &amp; Fuel · Plan de ${escapeHtml(profile.prenom)}</p>
-        ${historyHtml}
-      </div>` : ''}
+      ${historyHtml}
 
       <p style="margin-top:26px;font-size:11px;color:#999;">Document généré par Form &amp; Fuel — à titre indicatif, ne remplace pas l'avis d'un professionnel de santé ou d'un coach diplômé.</p>
-    </div>
-  `;
+    </div>`;
 }
 
-function handleExportPdf(){
+function buildTrainingPrintableHTML(profile){
+  const days = generateTrainingPlan(profile);
+  const daysHtml = days.map(day=>{
+    const rows = day.exercises.map(e=> `<tr><td>${e.name}</td><td>${GROUP_META[e.group].label}</td><td>${e.sets}</td><td>${e.reps}</td><td>${e.rest}</td></tr>`).join('');
+    return `<div style="page-break-inside:avoid; break-inside:avoid; margin-bottom:14px;">
+      <h3 style="margin-top:18px;">${day.name}</h3>
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead><tr style="background:#eee;"><th style="text-align:left;padding:4px;">Exercice</th><th style="text-align:left;padding:4px;">Muscle</th><th style="padding:4px;">Séries</th><th style="padding:4px;">Reps</th><th style="padding:4px;">Repos</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      </div>`;
+  }).join('');
+
+  return buildDocHeaderHtml(profile, `Programme d'entraînement · ${profile.jours} séances / semaine`) + `
+    <div style="padding:0 28px 32px;">
+      ${daysHtml}
+      <p style="margin-top:26px;font-size:11px;color:#999;">Document généré par Form &amp; Fuel — à titre indicatif, ne remplace pas l'avis d'un professionnel de santé ou d'un coach diplômé.</p>
+    </div>`;
+}
+
+function handleExportNutritionPdf(){
   if(!state.profile){
     showToast('Crée d\'abord un profil pour générer un plan.');
     return;
   }
-
   const plan = calcPlan(state.profile);
-  const printable = document.getElementById('printable');
-  printable.innerHTML = buildPrintableHTML(state.profile, plan, state.history);
-  showToast('Ouverture de l\'impression…');
+  openPrintWindow(`Plan nutrition — ${state.profile.prenom}`, buildNutritionPrintableHTML(state.profile, plan, state.history));
+}
 
-  let cleaned = false;
-  const cleanup = ()=>{
-    if(cleaned) return;
-    cleaned = true;
-    printable.innerHTML = '';
-    window.removeEventListener('afterprint', cleanup);
-  };
-  window.addEventListener('afterprint', cleanup);
-
-  // IMPORTANT (iOS Safari) : window.print() doit être appelé de façon
-  // SYNCHRONE, dans le même tick que le clic utilisateur. Le moindre report
-  // (requestAnimationFrame, setTimeout, await…) fait perdre à iOS le lien
-  // avec le geste utilisateur et la boîte d'impression n'apparaît jamais.
-  // Comme le contenu vient d'être injecté juste au-dessus de façon synchrone,
-  // le navigateur recalcule automatiquement sa mise en page avant d'imprimer :
-  // aucun délai supplémentaire n'est nécessaire.
-  window.print();
-
-  // Filet de sécurité si l'évènement afterprint n'est pas déclenché
-  // (certains navigateurs mobiles ne le supportent pas).
-  setTimeout(cleanup, 5000);
+function handleExportTrainingPdf(){
+  if(!state.profile){
+    showToast('Crée d\'abord un profil pour générer un plan.');
+    return;
+  }
+  openPrintWindow(`Programme entraînement — ${state.profile.prenom}`, buildTrainingPrintableHTML(state.profile));
 }
 
 /* =========================================================================
@@ -1582,7 +1615,8 @@ async function init(){
   document.getElementById('f_objectif').addEventListener('change', toggleTargetWeightField);
   document.getElementById('profileForm').addEventListener('submit', handleProfileSubmit);
   document.getElementById('entryForm').addEventListener('submit', handleEntrySubmit);
-  document.getElementById('exportPdfBtn').addEventListener('click', handleExportPdf);
+  document.getElementById('exportNutritionBtn').addEventListener('click', handleExportNutritionPdf);
+  document.getElementById('exportTrainingBtn').addEventListener('click', handleExportTrainingPdf);
   document.getElementById('deleteProfileBtn').addEventListener('click', handleDeleteProfile);
   document.getElementById('resetFormBtn').addEventListener('click', ()=>{
     clearForm();
