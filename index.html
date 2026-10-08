@@ -1369,6 +1369,107 @@ const EXO_CROSSFIT = {
   ]
 };
 
+/* ---- Base d'exercices dédiée aux séances à la maison ----
+   100 % réalisable avec le poids du corps, une paire d'haltères et/ou un kettlebell
+   (une chaise ou un canapé stable suffit pour certains mouvements). Pas de
+   « alt » machine ici : aucune machine n'est requise. */
+const EXO_MAISON = {
+  pecs: [
+    {n:'Pompes classiques', d:"Mains sous les épaules, corps gainé de la tête aux talons, descendez la poitrine près du sol puis poussez. Possible sur les genoux pour simplifier.", minLevel:'debutant', alt:"Pompes inclinées, mains sur un mur, un meuble solide ou le dossier d'un canapé (plus la surface est haute, plus c'est facile)."},
+    {n:'Développé couché haltères au sol', d:"Allongé au sol, coudes à environ 45° du buste, poussez les haltères vers le plafond. Le sol limite l'amplitude en bas et protège les épaules.", minLevel:'debutant', alt:"Pompes lentes : 3 s à la descente, pause d'1 s en bas, puis poussez."},
+    {n:'Écarté haltères au sol', d:"Allongé au sol, bras légèrement fléchis, ouvrez les haltères en arc de cercle jusqu'à toucher le sol avec les coudes, puis refermez.", minLevel:'debutant', alt:"Pompes mains très écartées, descente lente (3 s) pour étirer les pectoraux."},
+    {n:'Pompes pieds surélevés', d:"Pieds posés sur une chaise ou un canapé stable, corps gainé, descendez la poitrine vers le sol : cible davantage le haut des pectoraux.", minLevel:'intermediaire', alt:"Pompes classiques au sol, tempo lent (3 s de descente, 1 s de pause en bas)."},
+    {n:'Pompes diamant', d:"Mains rapprochées sous la poitrine en forme de losange, coudes proches du corps : sollicite pectoraux et triceps.", minLevel:'intermediaire', alt:"Pompes coudes serrés le long du corps, sur les genoux si besoin."},
+    {n:'Pompes archer', d:"Mains très écartées, descendez d'un côté en gardant l'autre bras tendu, puis alternez : progression vers la pompe à un bras.", minLevel:'avance', alt:"Pompes décalées : une main plus avancée que l'autre, en alternant les côtés à chaque série."}
+  ],
+  dos: [
+    {n:'Rowing haltère unilatéral (appui sur chaise)', d:"Une main et un genou en appui sur une chaise, dos plat, tirez l'haltère vers la hanche en serrant l'omoplate.", minLevel:'debutant', alt:"Superman en W : allongé sur le ventre, ramenez les coudes vers les côtes en serrant les omoplates, tenez 2 s."},
+    {n:'Rowing buste penché deux haltères', d:"Buste penché à 45°, dos plat, tirez les deux haltères vers le nombril en gardant les coudes proches du corps.", minLevel:'debutant', alt:"Y-T-W au sol : allongé sur le ventre, dessinez un Y, un T puis un W avec les bras en serrant les omoplates."},
+    {n:'Soulevé de terre haltères', d:"Haltères devant les cuisses, dos plat, hanches en arrière pour descendre le long des jambes, puis poussez les hanches pour remonter.", minLevel:'debutant', alt:"Good morning au poids du corps : mains derrière la tête, hanches en arrière, dos plat, puis remontez en serrant les fessiers."},
+    {n:'Superman', d:"Allongé sur le ventre, soulevez simultanément bras et jambes en contractant le bas du dos et les fessiers, tenez 1 à 2 secondes.", minLevel:'debutant', alt:"Superman alterné : bras droit et jambe gauche levés, puis l'inverse, en tenant 2 s en haut."},
+    {n:'Pullover haltère au sol', d:"Allongé au sol, un haltère à deux mains, amenez-le derrière la tête bras quasi tendus, puis ramenez-le au-dessus de la poitrine.", minLevel:'intermediaire', alt:"Reverse snow angel : allongé sur le ventre, bras tendus, balayez les bras de la tête jusqu'aux hanches en les gardant décollés."},
+    {n:'Rowing renégat (Renegade Row)', d:"En position de pompe sur deux haltères, tirez un haltère vers la hanche sans pivoter le bassin, puis alternez.", minLevel:'intermediaire', alt:"Planche haute avec tirage du coude vers la hanche, en alternant, sans charge."},
+    {n:'Rowing inversé sous une table', d:"Allongé sous une table très solide, agrippez le bord, tirez la poitrine vers la table en gardant le corps gainé. Vérifiez la stabilité de la table avant de commencer.", minLevel:'intermediaire', alt:"Reverse snow angel : allongé sur le ventre, bras tendus, balayez les bras de la tête jusqu'aux hanches en les gardant décollés."}
+  ],
+  jambes: [
+    {n:'Squat goblet (kettlebell ou haltère)', d:"Kettlebell ou haltère tenu contre la poitrine, descendez en squat dos droit, hanches sous les genoux, puis remontez.", minLevel:'debutant', alt:"Squat au poids du corps, bras tendus devant, tempo lent (3 s à la descente, pause en bas)."},
+    {n:'Fentes arrière haltères', d:"Un haltère dans chaque main, reculez une jambe et descendez le genou près du sol, puis revenez en alternant.", minLevel:'debutant', alt:"Fentes arrière au poids du corps, mains sur les hanches, avec 2 s de pause en bas."},
+    {n:'Soulevé de terre roumain haltères', d:"Jambes semi-tendues, haltères le long des cuisses, poussez les hanches en arrière en gardant le dos plat, puis remontez en contractant les fessiers.", minLevel:'debutant', alt:"Soulevé de terre roumain unijambiste au poids du corps, jambe libre tendue derrière, bras vers le sol."},
+    {n:'Pont fessier (hip thrust) avec charge', d:"Dos au sol ou épaules sur un canapé, haltère posé sur les hanches, poussez les hanches vers le haut et contractez les fessiers.", minLevel:'debutant', alt:"Pont fessier au sol à une jambe, ou à deux jambes avec pause de 2 s en haut."},
+    {n:'Montées sur chaise (step-ups) avec haltères', d:"Un pied sur une chaise stable, haltères en mains, montez en poussant sur la jambe d'appui puis redescendez en contrôle.", minLevel:'debutant', alt:"Fentes avant alternées au poids du corps, ou montées sur une marche sans charge."},
+    {n:'Mollets à une jambe', d:"Sur le bord d'une marche, montez sur la pointe d'un pied (haltère dans la main libre si besoin), descendez lentement.", minLevel:'debutant', alt:"Montées sur la pointe des pieds au sol, une jambe à la fois, avec 2 s de tenue en haut."},
+    {n:'Squat bulgare', d:"Pied arrière posé sur une chaise, haltères en mains, descendez sur la jambe avant puis remontez.", minLevel:'intermediaire', alt:"Fente statique (split squat) au poids du corps, pied arrière au sol, tempo lent."},
+    {n:'Squat sauté', d:"Descendez en squat puis sautez en extension complète, réceptionnez en douceur et enchaînez.", minLevel:'intermediaire', alt:"Squat lent (4 s à la descente) puis montée explosive sur la pointe des pieds, sans saut."},
+    {n:'Squat pistolet assisté', d:"Squat sur une jambe en vous tenant à un support (cadre de porte, chaise), jambe libre tendue devant, amplitude progressive.", minLevel:'avance', alt:"Squat sur une jambe jusqu'à une chaise (assis-debout contrôlé), ou fente statique lente."}
+  ],
+  epaules: [
+    {n:'Développé militaire haltères', d:"Debout ou assis, poussez les haltères au-dessus de la tête sans cambrer le bas du dos.", minLevel:'debutant', alt:"Pompes pike : hanches hautes en V inversé, descendez la tête vers le sol puis poussez."},
+    {n:'Élévations latérales haltères', d:"Bras légèrement fléchis, montez les haltères sur les côtés jusqu'à hauteur d'épaule, descendez lentement.", minLevel:'debutant', alt:"Élévations latérales isométriques : bras à l'horizontale, tenez 30 s en faisant de petits cercles."},
+    {n:'Oiseau haltères (buste penché)', d:"Buste penché, dos plat, montez les haltères sur les côtés pour cibler l'arrière des épaules.", minLevel:'debutant', alt:"Oiseau au sol : allongé sur le ventre, bras ouverts en T, montez les bras en serrant les omoplates."},
+    {n:'Développé kettlebell une main', d:"Kettlebell au niveau de l'épaule, poussez-le au-dessus de la tête en gardant les côtes serrées, puis alternez de côté.", minLevel:'debutant', alt:"Pompes pike, mains à la largeur des épaules, tempo lent."},
+    {n:'Halo kettlebell', d:"Kettlebell tenu par les cornes devant la poitrine, faites-le tourner autour de la tête en gainant, puis changez de sens.", minLevel:'debutant', alt:"Grands cercles de bras tendus dans les deux sens, gainage serré, épaules basses."},
+    {n:'Pompes pike', d:"Hanches hautes en V inversé, fléchissez les coudes pour descendre la tête vers le sol puis poussez : excellent substitut au développé militaire.", minLevel:'intermediaire', alt:"Chien tête en bas : planche haute puis hanches en arrière, tenez 20 à 30 s en poussant dans le sol."},
+    {n:'Développé Arnold', d:"Haltères devant la poitrine paumes vers vous, tournez les poignets en poussant au-dessus de la tête, puis revenez.", minLevel:'intermediaire', alt:"Pompes pike lentes (3 s à la descente), en tournant légèrement les coudes vers l'avant."}
+  ],
+  bras: [
+    {n:'Curl biceps haltères', d:"Coudes fixes le long du corps, fléchissez les haltères vers les épaules, descendez en contrôle.", minLevel:'debutant', alt:"Curl en auto-résistance : une main appuie sur l'autre poignet pendant que vous fléchissez le bras (5 s par répétition)."},
+    {n:'Curl marteau haltères', d:"Paumes face à face, fléchissez les avant-bras sans balancer le buste.", minLevel:'debutant', alt:"Curl marteau en auto-résistance : poing en position neutre, l'autre main résiste à la flexion."},
+    {n:'Curl concentré haltère', d:"Assis, coude appuyé contre l'intérieur de la cuisse, fléchissez l'haltère lentement pour isoler le biceps.", minLevel:'debutant', alt:"Tenue isométrique à 90° : une main pousse vers le bas sur l'avant-bras de l'autre, 20 à 30 s."},
+    {n:'Extension triceps nuque haltère', d:"Un haltère à deux mains derrière la tête, coudes serrés, tendez les bras vers le haut.", minLevel:'debutant', alt:"Extension triceps en auto-résistance : une main pousse sur l'autre derrière la tête pendant que les bras se tendent."},
+    {n:'Kickback triceps haltère', d:"Buste penché, coude fixe collé au corps, tendez l'avant-bras vers l'arrière puis revenez.", minLevel:'debutant', alt:"Dips au sol : assis, mains derrière les fesses, soulevez le bassin en fléchissant les coudes."},
+    {n:'Dips sur chaise', d:"Mains sur le bord d'une chaise stable derrière vous, fléchissez les coudes puis poussez. Jambes fléchies pour simplifier.", minLevel:'debutant', alt:"Dips au sol : assis, mains derrière les fesses, pieds à plat, soulevez le bassin en fléchissant les coudes."},
+    {n:'Pompes triceps (coudes serrés)', d:"Pompes avec les coudes qui frôlent les côtes pour cibler les triceps.", minLevel:'intermediaire', alt:"Pompes coudes serrés sur les genoux, descente lente."}
+  ],
+  sangle: [
+    {n:'Gainage planche', d:"Corps aligné en appui sur avant-bras et pointes de pieds, bassin ni creusé ni trop haut, maintenez la position.", minLevel:'debutant', alt:"Planche sur les genoux, ou planche haute (mains au sol) en alternant les appuis."},
+    {n:'Gainage latéral', d:"En appui sur un avant-bras de côté, bassin gainé et haut, maintenez puis changez de côté.", minLevel:'debutant', alt:"Gainage latéral genoux fléchis, ou relevés de bassin sur le côté."},
+    {n:'Dead bug', d:"Allongé sur le dos, bras et jambes à la verticale, étendez bras et jambe opposés en gardant le bas du dos plaqué au sol.", minLevel:'debutant', alt:"Dead bug avec seulement les jambes (bras le long du corps), bas du dos plaqué."},
+    {n:'Relevés de jambes au sol', d:"Allongé sur le dos, montez les jambes tendues à la verticale puis redescendez sans toucher le sol, bas du dos plaqué.", minLevel:'debutant', alt:"Relevés de genoux fléchis : allongé, ramenez les genoux vers la poitrine puis redescendez sans poser les pieds."},
+    {n:'Crunch bicyclette', d:"Allongé, mains derrière la tête, amenez coude et genou opposés l'un vers l'autre en alternant, rythme contrôlé.", minLevel:'debutant', alt:"Crunch classique, mains croisées sur la poitrine, expirez en haut."},
+    {n:'Marche du fermier à une main (Suitcase Carry)', d:"Un kettlebell ou haltère lourd dans une seule main, marchez en gardant le buste droit sans pencher, puis changez de main.", minLevel:'debutant', alt:"Gainage latéral avec montée de la jambe supérieure, tenez 20 à 30 s par côté."},
+    {n:'Russian twist kettlebell', d:"Assis, buste incliné, pieds décollés, passez le kettlebell d'un côté à l'autre en pivotant le buste.", minLevel:'intermediaire', alt:"Russian twist sans charge, mains jointes, pieds au sol ou décollés."},
+    {n:'Relevé turc (Turkish Get-Up)', d:"Allongé, kettlebell tendu au-dessus de l'épaule, redressez-vous étape par étape jusqu'à la position debout, puis redescendez. Commencez sans charge pour apprendre le geste.", minLevel:'avance', alt:"Relevé turc sans charge, poing fermé tendu vers le plafond, mouvement lent."}
+  ]
+};
+
+/* ---- Base d'exercices dédiée au Circuit maison (HIIT à la maison) ----
+   Mouvements dynamiques à enchaîner, sans matériel spécifique : poids du corps,
+   haltères, kettlebell. */
+const EXO_MAISON_CIRCUIT = {
+  jambes: [
+    {n:'Air Squats', d:"Squat au poids du corps, amplitude complète, rythme soutenu.", minLevel:'debutant', alt:"Squat avec pause de 2 s en bas, ou squat tempo lent."},
+    {n:'Kettlebell Swings', d:"Bascule de hanches pour projeter le kettlebell à hauteur de poitrine, dos gainé, fessiers contractés en haut.", minLevel:'debutant', alt:"Charnière de hanches dynamique au poids du corps : bras devant, extension explosive des hanches en finissant sur la pointe des pieds."},
+    {n:'Fentes sautées alternées', d:"Fente, puis changez de jambe en sautant, réception souple et contrôlée.", minLevel:'intermediaire', alt:"Fentes alternées sans saut, rythme soutenu."},
+    {n:'Squats sautés', d:"Descendez en squat puis sautez en extension complète, réceptionnez en douceur.", minLevel:'intermediaire', alt:"Squats rapides avec montée sur la pointe des pieds, sans saut."},
+    {n:'Thrusters haltères', d:"Haltères à l'épaule, squat puis extension explosive pour pousser les haltères au-dessus de la tête.", minLevel:'intermediaire', alt:"Squat puis poussée des bras tendus vers le plafond à chaque remontée, sans charge."}
+  ],
+  pecs: [
+    {n:'Pompes sur les genoux (rythme soutenu)', d:"Pompes genoux au sol, corps aligné des genoux à la tête, enchaînez sans pause.", minLevel:'debutant', alt:"Pompes inclinées, mains sur un mur ou un meuble solide."},
+    {n:'Pompes rapides', d:"Enchaînez les pompes en rythme soutenu, corps gainé, pour l'endurance du haut du corps.", minLevel:'debutant', alt:"Pompes sur les genoux, rythme soutenu."},
+    {n:'Burpees', d:"Descendez au sol, pompe, ramenez les pieds, sautez bras tendus au-dessus de la tête.", minLevel:'intermediaire', alt:"Burpees sans pompe ni saut : pas en arrière, pas en avant, redressement."},
+    {n:'Pompes claquées', d:"Poussez assez fort pour décoller les mains du sol et les claquer l'une contre l'autre, réception contrôlée.", minLevel:'avance', alt:"Pompes explosives sans décoller les mains, ou pompes classiques rapides."}
+  ],
+  dos: [
+    {n:'Rowing haltères buste penché', d:"Buste penché, dos plat, tirez les deux haltères vers le nombril en rythme soutenu.", minLevel:'debutant', alt:"Superman en W en rythme soutenu : coudes vers les côtes, omoplates serrées."},
+    {n:'Soulevé de terre haltères rapide', d:"Haltères devant les cuisses, dos plat, charnière de hanches rapide et contrôlée.", minLevel:'debutant', alt:"Good morning au poids du corps, mains derrière la tête, rythme soutenu."},
+    {n:'Superman dynamique', d:"Allongé sur le ventre, soulevez bras et jambes en alternant légèrement, contraction du bas du dos.", minLevel:'debutant', alt:"Superman tenu 2 à 3 s en haut de chaque répétition."},
+    {n:'Kettlebell High Pull', d:"Bascule de hanches puis tirez le kettlebell vers le menton, coudes hauts, redescendez en contrôle.", minLevel:'intermediaire', alt:"Charnière de hanches dynamique puis coudes hauts vers le plafond, mains jointes sous le menton, sans charge."},
+    {n:'Rowing renégat (Renegade Row)', d:"En position de pompe sur deux haltères, tirez un haltère vers la hanche sans pivoter le bassin, puis alternez.", minLevel:'intermediaire', alt:"Planche haute avec tirage du coude vers la hanche, en alternant, sans charge."}
+  ],
+  epaules: [
+    {n:'Développé haltères alterné', d:"Poussez un haltère au-dessus de la tête puis l'autre, en gainant pour éviter de cambrer.", minLevel:'debutant', alt:"Pompes pike en rythme soutenu."},
+    {n:'Halo kettlebell', d:"Kettlebell tenu par les cornes, tournez-le autour de la tête en gainant, puis changez de sens.", minLevel:'debutant', alt:"Grands cercles de bras tendus dans les deux sens, gainage serré, épaules basses."},
+    {n:'Push Press haltères', d:"Légère flexion de jambes puis poussez les haltères au-dessus de la tête avec l'élan des hanches.", minLevel:'intermediaire', alt:"Squat puis poussée des bras tendus au-dessus de la tête à chaque remontée, sans charge."},
+    {n:'Pompes pike', d:"Hanches hautes en V inversé, fléchissez les coudes pour descendre la tête vers le sol puis poussez.", minLevel:'intermediaire', alt:"Chien tête en bas : planche haute puis hanches en arrière, tenez 20 à 30 s en poussant dans le sol."}
+  ],
+  sangle: [
+    {n:'Mountain climbers', d:"En position de pompe, ramenez les genoux vers la poitrine en alternant, rythme rapide, bassin stable.", minLevel:'debutant', alt:"Mountain climbers lents : genou vers la poitrine avec 1 s de pause."},
+    {n:'Jumping Jacks', d:"Sautez en écartant jambes et bras en même temps, puis revenez pieds joints, rythme soutenu.", minLevel:'debutant', alt:"Step jacks : même mouvement sans saut, un pied après l'autre."},
+    {n:'Gainage dynamique (tap d\'épaules)', d:"En planche haute, touchez l'épaule opposée avec une main en alternant, sans balancer le bassin.", minLevel:'debutant', alt:"Planche sur les genoux avec tap d'épaule en alternant."},
+    {n:'Russian twist kettlebell', d:"Assis, buste incliné, pieds décollés, passez le kettlebell d'un côté à l'autre en pivotant le buste.", minLevel:'intermediaire', alt:"Russian twist sans charge, mains jointes, pieds au sol ou décollés."}
+  ]
+};
+
 /* ---- Adaptation reps / repos / séries au profil ----
    Les répétitions et le repos dépendent avant tout de l'objectif (perte, prise,
    recomposition, maintien), mais sont affinés selon le niveau : un débutant reste
@@ -1412,8 +1513,22 @@ const DAY_TYPES = {
   bas:              {label:'Bas du corps', groups:['jambes','sangle']},
   full:             {label:'Full Body', groups:['jambes','pecs','dos','sangle']},
   circuit_training: {label:'Circuit training', groups:['jambes','pecs','dos','epaules','sangle']},
-  circuit_force:    {label:'Circuit force', groups:['jambes','dos','pecs','bras']}
+  circuit_force:    {label:'Circuit force', groups:['jambes','dos','pecs','bras']},
+  /* Focus « maison » : poids du corps + haltères / kettlebell uniquement. */
+  maison_haut:      {label:'Maison · Haut du corps', groups:['pecs','dos','epaules','bras']},
+  maison_bas:       {label:'Maison · Bas du corps', groups:['jambes','sangle']},
+  maison_full:      {label:'Maison · Full Body', groups:['jambes','pecs','dos','epaules','sangle']},
+  maison_circuit:   {label:'Maison · Circuit HIIT', groups:['jambes','pecs','dos','epaules','sangle']}
 };
+
+const HOME_TYPES = ['maison_haut','maison_bas','maison_full','maison_circuit'];
+
+/* Libellé de l'alternative : « sans équipement » pour les focus maison, « machine » sinon. */
+function altLabel(typeId){
+  return HOME_TYPES.includes(typeId)
+    ? {icon:'🏠', long:'Alternative sans équipement', short:'Alt. sans équipement'}
+    : {icon:'🔧', long:'Alternative machine', short:'Alt. machine'};
+}
 
 function dayTypeOptionsHtml(current){
   const opts = [
@@ -1422,7 +1537,11 @@ function dayTypeOptionsHtml(current){
     ['bas', DAY_TYPES.bas.label],
     ['full', DAY_TYPES.full.label],
     ['circuit_training', DAY_TYPES.circuit_training.label],
-    ['circuit_force', DAY_TYPES.circuit_force.label]
+    ['circuit_force', DAY_TYPES.circuit_force.label],
+    ['maison_haut', DAY_TYPES.maison_haut.label],
+    ['maison_bas', DAY_TYPES.maison_bas.label],
+    ['maison_full', DAY_TYPES.maison_full.label],
+    ['maison_circuit', DAY_TYPES.maison_circuit.label]
   ];
   return opts.map(([val,label])=> `<option value="${val}" ${current === val ? 'selected' : ''}>${escapeHtml(label)}</option>`).join('');
 }
@@ -1450,12 +1569,12 @@ const ALL_MUSCLE_GROUPS = Object.keys(GROUP_META);
    stations spécifiques, car leurs bases d'exercices dédiées ne couvrent pas
    tous les groupes musculaires. */
 function addExerciseGroupChoices(day){
-  if(day.forcedType === 'circuit_training' || day.forcedType === 'circuit_force'){
+  if(day.forcedType === 'circuit_training' || day.forcedType === 'circuit_force' || day.forcedType === 'maison_circuit'){
     return day.groups;
   }
-  if(day.forcedType === 'full') return ALL_MUSCLE_GROUPS;
-  if(day.forcedType === 'haut') return UPPER_BODY_GROUPS;
-  if(day.forcedType === 'bas') return LOWER_BODY_GROUPS;
+  if(day.forcedType === 'full' || day.forcedType === 'maison_full') return ALL_MUSCLE_GROUPS;
+  if(day.forcedType === 'haut' || day.forcedType === 'maison_haut') return UPPER_BODY_GROUPS;
+  if(day.forcedType === 'bas' || day.forcedType === 'maison_bas') return LOWER_BODY_GROUPS;
 
   // Split automatique (non forcé) : catégorie déduite des groupes travaillés.
   const hasLower = day.groups.includes('jambes');
@@ -1481,6 +1600,18 @@ function trainingParamsForType(typeId, profile){
       circuitNote:"🔁 Format circuit force : charge plus lourde qu'un circuit classique. Enchaîne les exercices en gardant une technique stricte, récupère 2 à 3 min entre chaque tour complet."
     };
   }
+  if(typeId === 'maison_circuit'){
+    return {
+      reps:'12-20', rest:'20-30 s entre exercices', sets: Math.max(2, sets - 1), circuit:true,
+      circuitNote:"🏠 Circuit maison : enchaîne les exercices ci-dessous (12 à 20 répétitions ou ~40 s d'effort chacun) avec 20 à 30 s de transition, puis récupère 90 s à 2 min avant le tour suivant. Matériel : poids du corps, haltères, kettlebell."
+    };
+  }
+  if(HOME_TYPES.includes(typeId)){
+    return {
+      reps, rest, sets, circuit:false,
+      circuitNote:"🏠 Séance à la maison : poids du corps, haltères et kettlebell uniquement. Quand la charge devient trop légère, augmente les répétitions, ralentis la descente (3 s), marque une pause en bas du mouvement ou passe à la version unilatérale (une jambe / un bras)."
+    };
+  }
   return {reps, rest, sets, circuit:false, circuitNote:''};
 }
 
@@ -1499,7 +1630,7 @@ function trainingParamsForType(typeId, profile){
 const TRAINING_MAX_EXOS_PER_DAY = 6;
 
 function countForGroup(g, groups, typeId, niveau){
-  if(typeId === 'circuit_training' || typeId === 'circuit_force'){
+  if(typeId === 'circuit_training' || typeId === 'circuit_force' || typeId === 'maison_circuit'){
     return 1;
   }
   const mainGroups = ['jambes','pecs','dos'];
@@ -1579,6 +1710,8 @@ function exoListForGroup(group, typeId, niveau){
   let list;
   if(typeId === 'circuit_training') list = EXO_HYROX[group] || EXO_DB[group] || [];
   else if(typeId === 'circuit_force') list = EXO_CROSSFIT[group] || EXO_DB[group] || [];
+  else if(typeId === 'maison_circuit') list = EXO_MAISON_CIRCUIT[group] || EXO_MAISON[group] || [];
+  else if(HOME_TYPES.includes(typeId)) list = EXO_MAISON[group] || [];
   else list = EXO_DB[group] || [];
   return niveau ? filterByNiveau(list, niveau) : list;
 }
@@ -1834,7 +1967,7 @@ function renderTraining(profile){
           <div class="exo-current-name">${e.name}</div>
           <select class="exo-edit-select" data-field="exo" data-day-index="${dayIdx}" data-exo-index="${e.exoIndex}" data-default="">${exoOptions}</select>
           <div class="exo-desc">${e.desc}</div>
-          ${e.alt ? `<div class="exo-alt">🔧 <b>Alternative machine :</b> ${e.alt}</div>` : ''}
+          ${e.alt ? `<div class="exo-alt">${altLabel(e.typeId).icon} <b>${altLabel(e.typeId).long} :</b> ${e.alt}</div>` : ''}
           ${tag}
         </td>
         <td>
@@ -1872,7 +2005,7 @@ function renderTraining(profile){
             <tbody>${rows}</tbody>
           </table>
         </div>
-        ${day.circuit ? `<p class="recipe-adjust" style="margin-top:10px;">${day.circuitNote}</p>` : ''}
+        ${day.circuitNote ? `<p class="recipe-adjust" style="margin-top:10px;">${day.circuitNote}</p>` : ''}
         ${addRowHtml}
       </div>`;
   });
@@ -1899,7 +2032,7 @@ function renderTraining(profile){
   const dayTypeEditorHtml = `
     <div class="macro-editor" id="dayTypeEditor">
       <h3 class="meal-grid-title" style="margin-bottom:2px;">Forcer le focus d'une séance</h3>
-      <p class="sub" style="margin-top:2px;">Remplace le split recommandé pour un jour donné par un focus précis : haut du corps, bas du corps, full body, circuit training ou circuit force.</p>
+      <p class="sub" style="margin-top:2px;">Remplace le split recommandé pour un jour donné par un focus précis : haut du corps, bas du corps, full body, circuit training, circuit force, ou l'un des focus « Maison » (haut, bas, full body, circuit HIIT) qui n'utilisent que le poids du corps, des haltères et un kettlebell.</p>
       <div class="day-type-grid">
         ${days.map((day, i)=> `
           <div class="field">
@@ -2585,14 +2718,14 @@ function buildNutritionPrintableHTML(profile, plan, history){
 function buildTrainingPrintableHTML(profile){
   const days = generateTrainingPlan(profile);
   const daysHtml = days.map(day=>{
-    const rows = day.exercises.map(e=> `<tr><td>${e.name}${e.alt ? `<br><span style="font-size:10.5px;color:#3D6B52;">🔧 Alt. machine : ${e.alt}</span>` : ''}</td><td>${GROUP_META[e.group].label}</td><td>${e.sets}</td><td>${e.reps}</td><td>${e.rest}</td></tr>`).join('');
+    const rows = day.exercises.map(e=> `<tr><td>${e.name}${e.alt ? `<br><span style="font-size:10.5px;color:#3D6B52;">${altLabel(e.typeId).icon} ${altLabel(e.typeId).short} : ${e.alt}</span>` : ''}</td><td>${GROUP_META[e.group].label}</td><td>${e.sets}</td><td>${e.reps}</td><td>${e.rest}</td></tr>`).join('');
     return `<div style="page-break-inside:avoid; break-inside:avoid; margin-bottom:14px;">
       <h3 style="margin-top:18px;">${day.name}</h3>
       <table style="width:100%;border-collapse:collapse;font-size:12px;">
         <thead><tr style="background:#eee;"><th style="text-align:left;padding:4px;">Exercice</th><th style="text-align:left;padding:4px;">Muscle</th><th style="padding:4px;">Séries</th><th style="padding:4px;">Reps</th><th style="padding:4px;">Repos</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
-      ${day.circuit ? `<p style="margin:6px 0 0;font-size:11px;color:#7A3A28;">${day.circuitNote}</p>` : ''}
+      ${day.circuitNote ? `<p style="margin:6px 0 0;font-size:11px;color:#7A3A28;">${day.circuitNote}</p>` : ''}
       </div>`;
   }).join('');
 
