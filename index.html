@@ -404,6 +404,19 @@ tailwind.config = {
   .print-toolbar{ display:none !important; }
 }
 
+.rm-box{margin-top:8px;font-size:12px;}
+.rm-box summary{cursor:pointer;font-weight:700;color:#8A6A1B;}
+.rm-box .rm-row{display:flex;gap:8px;margin:6px 0;}
+.rm-box .rm-row label{flex:1;font-size:10.5px;text-transform:uppercase;font-weight:700;color:var(--ink-dim);}
+.rm-box input{width:100%;min-height:34px;border:1.5px solid #D9D2BC;border-radius:6px;padding:4px 6px;background:#fff;color:var(--ink);text-align:center;}
+.rm-out{line-height:1.6;color:var(--ink);}
+.rm-out small{color:var(--ink-dim);display:block;}
+.perf-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;align-items:end;margin-top:10px;}
+.perf-form .wide{grid-column:span 2;}
+.pill-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;}
+.pill{background:#fff;border:1px solid #DED6BE;border-radius:20px;padding:4px 10px;font-size:12px;}
+.pill button{border:0;background:none;color:#B24A34;font-weight:700;padding:0 0 0 6px;min-height:0;}
+.perf-sep{margin:18px 0 4px;font-family:var(--font-display);text-transform:uppercase;letter-spacing:1px;font-size:14px;}
 </style>
 </head>
 <body>
@@ -429,6 +442,7 @@ tailwind.config = {
       <button class="tab-btn active" data-tab="profil"><svg class="tab-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg><span class="max-[820px]:hidden">Profil &amp; objectif</span><span class="min-[821px]:hidden">Profil</span></button>
       <button class="tab-btn" data-tab="nutrition"><svg class="tab-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 2v7a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6a2 2 0 0 0 2 2h3Zm0 0v7"/></svg><span class="max-[820px]:hidden">Plan nutrition</span><span class="min-[821px]:hidden">Nutrition</span></button>
       <button class="tab-btn" data-tab="training"><svg class="tab-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12"/></svg><span class="max-[820px]:hidden">Plan entraînement</span><span class="min-[821px]:hidden">Entraînement</span></button>
+      <button class="tab-btn" data-tab="perf"><svg class="tab-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4Z"/><path d="M7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3"/></svg><span class="max-[820px]:hidden">Performances</span><span class="min-[821px]:hidden">Perfs</span></button>
       <button class="tab-btn" data-tab="suivi"><svg class="tab-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"/><path d="m7 15 4-5 3 3 5-7"/></svg><span>Suivi</span></button>
     </nav>
 
@@ -553,6 +567,11 @@ tailwind.config = {
         <div id="trainingContent"></div>
       </section>
 
+      <!-- ===== PERFORMANCES ===== -->
+      <section id="tab-perf" class="tab-panel">
+        <div id="perfContent"></div>
+      </section>
+
       <!-- ===== SUIVI ===== -->
       <section id="tab-suivi" class="tab-panel">
         <div class="sheet">
@@ -670,6 +689,7 @@ async function saveProfile(profile){
 async function deleteProfileById(id){
   await storageDelete('profile:' + id, false);
   await storageDelete('history:' + id, false);
+  await storageDelete('perf:' + id, false);
 }
 async function loadHistory(id){
   const v = await storageGet('history:' + id, false);
@@ -688,7 +708,11 @@ let state = {
   profile: null,
   history: [],
   weightChart: null,
-  measureChart: null
+  measureChart: null,
+  perf: {customExos:[], logs:[], rm:[], pct:{}},
+  perfUI: {},
+  perfChart: null,
+  rmChart: null
 };
 
 function newId(){ return 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
@@ -2002,6 +2026,7 @@ function renderTraining(profile){
           <div class="exo-current-name">${e.name}</div>
           <select class="exo-edit-select" data-field="exo" data-day-index="${dayIdx}" data-exo-index="${e.exoIndex}" data-default="">${exoOptions}</select>
           <div class="exo-desc">${e.desc}</div>
+          ${rmBoxHtml(e)}
           ${e.alt ? `<div class="exo-alt">${altLabel(e.typeId).icon} <b>${altLabel(e.typeId).long} :</b> ${e.alt}</div>` : ''}
           ${tag}
         </td>
@@ -2119,6 +2144,8 @@ function renderTraining(profile){
       renderTraining(profile);
     });
   }
+
+  bindRmBoxes();
 
   /* ---- Ajouter / supprimer un exercice dans une séance ---- */
   const fillAddExoNameSelect = (dayIdx)=>{
@@ -2268,6 +2295,257 @@ function renderTraining(profile){
       showToast("Réglages d'exercices réinitialisés ✅");
     });
   }
+}
+
+
+/* =========================================================================
+   PERFORMANCES — charges, 1RM, exercices perso (stockés par profil : perf:<id>)
+========================================================================= */
+const emptyPerf = ()=> ({customExos:[], logs:[], rm:[], pct:{}});
+async function loadPerf(id){
+  const v = await storageGet('perf:' + id, false);
+  let d = {}; try{ d = v ? JSON.parse(v) : {}; }catch(e){}
+  return {customExos:d.customExos||[], logs:d.logs||[], rm:d.rm||[], pct:d.pct||{}};
+}
+function savePerf(){
+  return state.currentId ? storageSet('perf:' + state.currentId, JSON.stringify(state.perf), false) : Promise.resolve(false);
+}
+const todayIso = ()=> new Date().toISOString().slice(0,10);
+const fmtKg = n => (Math.round(n*10)/10).toLocaleString('fr-FR');
+const roundLoad = kg => Math.round(kg/2.5)*2.5;           // pas de disque de 1,25 kg
+const epley = (kg, r)=> r <= 1 ? kg : kg*(1 + r/30);       // 1RM estimé
+
+function exoCatalog(){
+  const map = new Map();
+  [EXO_DB, EXO_HYROX, EXO_CROSSFIT, EXO_MAISON, EXO_MAISON_CIRCUIT].forEach(db=>
+    Object.keys(db).forEach(g=> db[g].forEach(x=>{ if(!map.has(x.n)) map.set(x.n, {name:x.n, group:g}); })));
+  state.perf.customExos.forEach(c=> map.set(c.name, {name:c.name, group:c.group, custom:true}));
+  return [...map.values()];
+}
+function exoOptionsHtml(sel){
+  const cat = exoCatalog();
+  return Object.keys(GROUP_META).map(g=>{
+    const items = cat.filter(x=> x.group === g).sort((a,b)=> a.name.localeCompare(b.name, 'fr'));
+    return items.length ? `<optgroup label="${GROUP_META[g].label}">${items.map(x=>
+      `<option value="${escapeHtml(x.name)}" ${x.name === sel ? 'selected' : ''}>${escapeHtml(x.name)}${x.custom ? ' ★' : ''}</option>`).join('')}</optgroup>` : '';
+  }).join('');
+}
+function latestRM(exo){
+  const l = state.perf.rm.filter(r=> r.exo === exo).sort((a,b)=> a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+  return l.length ? l[l.length-1].kg : null;
+}
+function parseReps(s){
+  s = String(s || '');
+  if(/\b(s|sec|min|m|cal|km)\b/i.test(s)) return null;      // temps / distance : pas de %1RM
+  const n = (s.match(/\d+/g) || []).map(Number);
+  if(!n.length) return null;
+  return n.length > 1 ? (n[0] + n[1]) / 2 : n[0];
+}
+function workLoad(exo, repsStr){
+  const rm = latestRM(exo), r = parseReps(repsStr);
+  const auto = r ? Math.min(95, Math.max(50, Math.round(100/(1 + r/30)/5)*5)) : null;
+  const pct = state.perf.pct[exo] || auto;
+  return {rm, auto, pct, load: rm && pct ? roundLoad(rm*pct/100) : null};
+}
+const rmSummary = w => w.load ? `🎯 ${fmtKg(w.load)} kg · ${w.pct} % du 1RM` : '⚖️ 1RM &amp; charge de travail';
+function rmOutHtml(w){
+  if(!w.rm) return 'Renseigne ton 1RM pour calculer ta charge de travail.';
+  return [60,70,80,90].map(p=> `${p} % → <b>${fmtKg(roundLoad(w.rm*p/100))} kg</b>`).join(' · ')
+    + '<small>Arrondi à 2,5 kg. Le % est choisi selon les reps visées (formule d\'Epley) ; tu peux le modifier.</small>';
+}
+function rmBoxHtml(e){
+  const w = workLoad(e.name, e.reps);
+  return `<details class="rm-box" data-exo="${escapeHtml(e.name)}" data-reps="${escapeHtml(e.reps)}">
+    <summary>${rmSummary(w)}</summary>
+    <div class="rm-row">
+      <label>1RM (kg)<input type="number" min="0" step="0.5" inputmode="decimal" class="rm-input" value="${w.rm || ''}"></label>
+      <label>% du 1RM<input type="number" min="30" max="100" step="1" inputmode="numeric" class="rm-pct" value="${state.perf.pct[e.name] || ''}" placeholder="${w.auto || ''}"></label>
+    </div>
+    <div class="rm-out">${rmOutHtml(w)}</div>
+  </details>`;
+}
+function refreshAllRmBoxes(exo){
+  document.querySelectorAll('.rm-box').forEach(b=>{
+    if(b.dataset.exo !== exo) return;
+    const w = workLoad(exo, b.dataset.reps);
+    b.querySelector('summary').innerHTML = rmSummary(w);
+    b.querySelector('.rm-out').innerHTML = rmOutHtml(w);
+    b.querySelector('.rm-pct').placeholder = w.auto || '';
+    const i = b.querySelector('.rm-input');
+    if(document.activeElement !== i) i.value = latestRM(exo) || '';
+  });
+}
+function bindRmBoxes(){
+  document.querySelectorAll('.rm-box').forEach(box=>{
+    const exo = box.dataset.exo;
+    box.querySelector('.rm-input').addEventListener('change', async ev=>{
+      const kg = parseFloat(ev.target.value);
+      state.perf.rm = state.perf.rm.filter(r=> !(r.exo === exo && r.date === todayIso()));
+      if(kg > 0) state.perf.rm.push({id:newId(), date:todayIso(), exo, kg});
+      await savePerf();
+      ev.target.value = latestRM(exo) || '';
+      refreshAllRmBoxes(exo);
+      renderPerf();
+      showToast(kg > 0 ? '1RM enregistré 🏋️' : '1RM du jour retiré');
+    });
+    box.querySelector('.rm-pct').addEventListener('change', async ev=>{
+      const p = parseFloat(ev.target.value);
+      if(p >= 30 && p <= 100) state.perf.pct[exo] = p; else delete state.perf.pct[exo];
+      await savePerf();
+      refreshAllRmBoxes(exo);
+    });
+  });
+}
+
+function renderPerf(){
+  const c = document.getElementById('perfContent');
+  if(state.perfChart){ state.perfChart.destroy(); state.perfChart = null; }
+  if(state.rmChart){ state.rmChart.destroy(); state.rmChart = null; }
+  if(!state.profile){
+    c.innerHTML = '<div class="sheet"><h2>Performances</h2><p class="sub">Sélectionne ou crée un profil pour suivre tes charges et ton 1RM.</p></div>';
+    return;
+  }
+  const P = state.perf, ui = state.perfUI, $p = id => document.getElementById(id);
+  const tracked = [...new Set([...P.logs.map(l=> l.exo), ...P.rm.map(r=> r.exo)])];
+  const sel = tracked.includes(ui.sel) ? ui.sel : tracked[0];
+  ui.sel = sel;
+  const rmExos = [...new Set(P.rm.map(r=> r.exo))];
+  const rmRows = rmExos.map(exo=>{
+    const l = P.rm.filter(r=> r.exo === exo).sort((a,b)=> a.date < b.date ? -1 : 1);
+    const first = l[0], last = l[l.length-1], d = last.kg - first.kg;
+    return `<tr><td>${escapeHtml(exo)}</td><td><b>${fmtKg(last.kg)} kg</b></td><td>${l.length > 1 ? (d >= 0 ? '+' : '') + fmtKg(d) + ' kg' : '—'}</td><td>${formatDate(last.date)}</td></tr>`;
+  }).join('');
+  const selLogs = P.logs.filter(l=> l.exo === sel), selRm = P.rm.filter(r=> r.exo === sel).sort((a,b)=> a.date < b.date ? -1 : 1);
+  const hist = [
+    ...selLogs.map(l=> ({d:l.date, t:'Série', txt:`${l.sets || 1} × ${l.reps} @ ${fmtKg(l.kg)} kg · 1RM est. ${fmtKg(epley(l.kg, l.reps))} kg`, del:`data-del-log="${l.id}"`})),
+    ...selRm.map(r=> ({d:r.date, t:'1RM', txt:`${fmtKg(r.kg)} kg`, del:`data-del-rm="${r.id}"`}))
+  ].sort((a,b)=> a.d < b.d ? 1 : -1);
+  const bestLoad = selLogs.length ? Math.max(...selLogs.map(l=> l.kg)) : null;
+  const bestEst = selLogs.length ? Math.max(...selLogs.map(l=> epley(l.kg, l.reps))) : null;
+  const rmNow = sel ? latestRM(sel) : null;
+
+  c.innerHTML = `
+  <div class="sheet">
+    <div class="sheet-tab" style="background:var(--g-pecs); color:#fff;">Performances</div>
+    <h2>Mes charges &amp; mon 1RM</h2>
+    <p class="sub">Note tes séries, suis ta progression et ton 1RM. Le 1RM sert aussi à calculer tes charges dans l'onglet « Plan entraînement ».</p>
+    <div class="stat-row">
+      <div class="stat-card"><div class="label">Séries notées</div><div class="value">${P.logs.length}</div></div>
+      <div class="stat-card"><div class="label">Séances</div><div class="value">${new Set(P.logs.map(l=> l.date)).size}</div></div>
+      <div class="stat-card"><div class="label">Exercices suivis</div><div class="value">${tracked.length}</div></div>
+      <div class="stat-card"><div class="label">1RM suivis</div><div class="value">${rmExos.length}</div></div>
+    </div>
+
+    <h3 class="perf-sep">Noter une charge</h3>
+    <form id="logForm" class="perf-form">
+      <div class="field"><label for="lg_date">Date</label><input type="date" id="lg_date" value="${ui.date || todayIso()}" required></div>
+      <div class="field wide"><label for="lg_exo">Exercice</label><select id="lg_exo">${exoOptionsHtml(ui.logExo)}</select></div>
+      <div class="field"><label for="lg_kg">Charge (kg)</label><input type="number" id="lg_kg" min="0" step="0.5" inputmode="decimal" required></div>
+      <div class="field"><label for="lg_reps">Reps</label><input type="number" id="lg_reps" min="1" inputmode="numeric" required></div>
+      <div class="field"><label for="lg_sets">Séries</label><input type="number" id="lg_sets" min="1" value="${ui.sets || 3}" inputmode="numeric"></div>
+      <div class="field"><button type="submit" class="btn btn-accent">Ajouter</button></div>
+    </form>
+
+    <h3 class="perf-sep">Mon 1RM</h3>
+    <form id="rmForm" class="perf-form">
+      <div class="field"><label for="rm_date">Date</label><input type="date" id="rm_date" value="${ui.date || todayIso()}" required></div>
+      <div class="field wide"><label for="rm_exo">Exercice</label><select id="rm_exo">${exoOptionsHtml(ui.rmExo)}</select></div>
+      <div class="field"><label for="rm_kg">1RM (kg)</label><input type="number" id="rm_kg" min="0" step="0.5" inputmode="decimal" required></div>
+      <div class="field"><button type="submit" class="btn btn-accent">Enregistrer</button></div>
+      <div class="field"><label for="est_kg">Estimer : charge</label><input type="number" id="est_kg" min="0" step="0.5" inputmode="decimal" placeholder="kg"></div>
+      <div class="field"><label for="est_reps">× reps</label><input type="number" id="est_reps" min="1" inputmode="numeric" placeholder="reps"></div>
+      <div class="field"><button type="button" class="btn btn-ghost btn-sm" id="estBtn" style="border-color:#D9D2BC; color:var(--ink);">Estimer mon 1RM</button></div>
+    </form>
+    ${rmRows ? `<table class="log-table"><thead><tr><th>Exercice</th><th>1RM actuel</th><th>Évolution</th><th>Dernière mesure</th></tr></thead><tbody>${rmRows}</tbody></table>`
+             : '<p class="empty-note">Aucun 1RM noté pour l\'instant. Tu peux aussi le saisir directement dans le Plan entraînement.</p>'}
+
+    <h3 class="perf-sep">Progression</h3>
+    ${sel ? `
+    <div class="field" style="max-width:420px;"><label for="pf_sel">Exercice suivi</label>
+      <select id="pf_sel">${tracked.map(x=> `<option value="${escapeHtml(x)}" ${x === sel ? 'selected' : ''}>${escapeHtml(x)}</option>`).join('')}</select></div>
+    <div class="stat-row">
+      <div class="stat-card"><div class="label">Charge max</div><div class="value">${bestLoad !== null ? fmtKg(bestLoad) : '—'}<span class="unit">kg</span></div></div>
+      <div class="stat-card"><div class="label">1RM estimé max</div><div class="value">${bestEst !== null ? fmtKg(bestEst) : '—'}<span class="unit">kg</span></div></div>
+      <div class="stat-card"><div class="label">1RM noté</div><div class="value">${rmNow !== null ? fmtKg(rmNow) : '—'}<span class="unit">kg</span></div></div>
+    </div>
+    ${selLogs.length ? '<div class="chart-wrap"><canvas id="perfChart"></canvas></div>' : '<p class="empty-note">Note une série pour voir la courbe des charges.</p>'}
+    ${selRm.length ? '<div class="chart-wrap"><canvas id="rmChart"></canvas></div>' : '<p class="empty-note">Note un 1RM pour voir son évolution.</p>'}
+    <table class="log-table"><thead><tr><th>Date</th><th>Type</th><th>Détail</th><th></th></tr></thead><tbody>
+      ${hist.map(h=> `<tr><td>${formatDate(h.d)}</td><td>${h.t}</td><td>${h.txt}</td><td><button class="btn btn-danger btn-sm" ${h.del}>✕</button></td></tr>`).join('')}
+    </tbody></table>` : '<p class="empty-note">Ajoute une charge ou un 1RM pour commencer le suivi.</p>'}
+
+    <h3 class="perf-sep">Exercices personnalisés</h3>
+    <form id="customForm" class="perf-form">
+      <div class="field wide"><label for="cx_name">Nom de l'exercice</label><input type="text" id="cx_name" maxlength="60" required></div>
+      <div class="field"><label for="cx_group">Muscle</label><select id="cx_group">${Object.keys(GROUP_META).map(g=> `<option value="${g}">${GROUP_META[g].label}</option>`).join('')}</select></div>
+      <div class="field"><button type="submit" class="btn btn-accent">Créer</button></div>
+    </form>
+    ${P.customExos.length ? `<div class="pill-row">${P.customExos.map(x=> `<span class="pill">★ ${escapeHtml(x.name)} · ${GROUP_META[x.group].label}<button type="button" data-del-cx="${x.id}" title="Supprimer">✕</button></span>`).join('')}</div>` : ''}
+  </div>`;
+
+  /* ---- graphiques ---- */
+  const opt = t => ({responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{labels:{color:'#252A24'}}, title:{display:true, text:t, color:'#252A24'}},
+    scales:{x:{ticks:{color:'#6E7568'}}, y:{ticks:{color:'#6E7568'}}}});
+  if($p('perfChart')){
+    const dates = [...new Set(selLogs.map(l=> l.date))].sort();
+    const per = d => selLogs.filter(l=> l.date === d);
+    state.perfChart = new Chart($p('perfChart'), {type:'line', options:opt('Charges — ' + sel + ' (kg)'), data:{labels:dates.map(formatDate), datasets:[
+      {label:'Charge max', data:dates.map(d=> Math.max(...per(d).map(l=> l.kg))), borderColor:'#D9583F', backgroundColor:'rgba(217,88,63,0.15)', tension:0.3, pointRadius:3, fill:true},
+      {label:'1RM estimé', data:dates.map(d=> Math.round(Math.max(...per(d).map(l=> epley(l.kg, l.reps)))*10)/10), borderColor:'#4C8FB0', borderDash:[6,4], tension:0.3, pointRadius:3}
+    ]}});
+  }
+  if($p('rmChart')){
+    state.rmChart = new Chart($p('rmChart'), {type:'line', options:opt('Évolution du 1RM — ' + sel + ' (kg)'), data:{labels:selRm.map(r=> formatDate(r.date)), datasets:[
+      {label:'1RM', data:selRm.map(r=> r.kg), borderColor:'#E3A73B', backgroundColor:'rgba(227,167,59,0.18)', tension:0.3, pointRadius:4, fill:true}
+    ]}});
+  }
+
+  /* ---- événements ---- */
+  $p('lg_exo').addEventListener('change', e=> ui.logExo = e.target.value);
+  $p('rm_exo').addEventListener('change', e=> ui.rmExo = e.target.value);
+  $p('lg_date').addEventListener('change', e=> ui.date = e.target.value);
+  $p('rm_date').addEventListener('change', e=> ui.date = e.target.value);
+  $p('logForm').addEventListener('submit', async ev=>{
+    ev.preventDefault();
+    const exo = $p('lg_exo').value, kg = parseFloat($p('lg_kg').value), reps = parseInt($p('lg_reps').value, 10), sets = parseInt($p('lg_sets').value, 10) || 1;
+    if(!exo || isNaN(kg) || !reps){ showToast('Charge et reps requises.'); return; }
+    P.logs.push({id:newId(), date:$p('lg_date').value || todayIso(), exo, kg, reps, sets});
+    ui.logExo = exo; ui.sel = exo; ui.sets = sets;
+    await savePerf(); renderPerf(); showToast('Charge ajoutée 💪');
+  });
+  $p('rmForm').addEventListener('submit', async ev=>{
+    ev.preventDefault();
+    const exo = $p('rm_exo').value, kg = parseFloat($p('rm_kg').value), date = $p('rm_date').value || todayIso();
+    if(!exo || !(kg > 0)){ showToast('1RM invalide.'); return; }
+    P.rm = P.rm.filter(r=> !(r.exo === exo && r.date === date));
+    P.rm.push({id:newId(), date, exo, kg});
+    ui.rmExo = exo; ui.sel = exo;
+    await savePerf(); refreshAllRmBoxes(exo); renderPerf(); showToast('1RM enregistré 🏋️');
+  });
+  $p('estBtn').addEventListener('click', ()=>{
+    const kg = parseFloat($p('est_kg').value), r = parseInt($p('est_reps').value, 10);
+    if(!(kg > 0) || !r){ showToast('Indique une charge et un nombre de reps.'); return; }
+    $p('rm_kg').value = Math.round(epley(kg, r)*2)/2;
+    showToast('1RM estimé (Epley) — clique sur Enregistrer');
+  });
+  const selEl = $p('pf_sel'); if(selEl) selEl.addEventListener('change', e=>{ ui.sel = e.target.value; renderPerf(); });
+  c.querySelectorAll('[data-del-log]').forEach(b=> b.addEventListener('click', async ()=>{
+    P.logs = P.logs.filter(l=> l.id !== b.dataset.delLog); await savePerf(); renderPerf(); }));
+  c.querySelectorAll('[data-del-rm]').forEach(b=> b.addEventListener('click', async ()=>{
+    P.rm = P.rm.filter(r=> r.id !== b.dataset.delRm); await savePerf(); refreshAllRmBoxes(sel); renderPerf(); }));
+  $p('customForm').addEventListener('submit', async ev=>{
+    ev.preventDefault();
+    const name = $p('cx_name').value.trim(), group = $p('cx_group').value;
+    if(!name) return;
+    if(exoCatalog().some(x=> x.name.toLowerCase() === name.toLowerCase())){ showToast('Cet exercice existe déjà.'); return; }
+    P.customExos.push({id:newId(), name, group});
+    ui.logExo = name;
+    await savePerf(); renderPerf(); showToast('Exercice créé ★');
+  });
+  c.querySelectorAll('[data-del-cx]').forEach(b=> b.addEventListener('click', async ()=>{
+    if(!confirm('Supprimer cet exercice personnalisé ? Les charges déjà notées sont conservées.')) return;
+    P.customExos = P.customExos.filter(x=> x.id !== b.dataset.delCx); await savePerf(); renderPerf(); }));
 }
 
 /* =========================================================================
@@ -2481,6 +2759,8 @@ async function loadProfileIntoApp(id){
   state.currentId = id;
   state.profile = profile;
   state.history = await loadHistory(id);
+  state.perf = await loadPerf(id);
+  state.perfUI = {};
   fillForm(profile);
   toggleTargetWeightField();
   const plan = calcPlan(profile);
@@ -2488,6 +2768,7 @@ async function loadProfileIntoApp(id){
   renderNutrition(profile, plan);
   renderTraining(profile);
   renderSuivi(profile, state.history);
+  renderPerf();
   document.getElementById('deleteProfileBtn').style.display = 'inline-flex';
 }
 
@@ -2543,13 +2824,14 @@ async function handleProfileSubmit(evt){
     const saved = await saveProfile(profile);
     state.currentId = profile.id;
     state.profile = profile;
-    if(isNew) state.history = [];
+    if(isNew){ state.history = []; state.perf = emptyPerf(); state.perfUI = {}; }
     await refreshProfileSelect(profile.id);
     const plan = calcPlan(profile);
     renderSummary(profile, plan);
     renderNutrition(profile, plan);
     renderTraining(profile);
     renderSuivi(profile, state.history);
+    renderPerf();
     document.getElementById('deleteProfileBtn').style.display = 'inline-flex';
     showToast(saved ? (isNew ? 'Profil créé, sauvegardé et plan généré 🎉' : 'Plan mis à jour et sauvegardé ✅') : 'Plan généré, mais la sauvegarde a échoué ⚠️');
     document.getElementById('profilSummary').scrollIntoView({behavior:'smooth', block:'nearest'});
@@ -2601,7 +2883,7 @@ async function handleDeleteProfile(){
   document.getElementById('deleteProfileBtn').style.display = 'none';
   renderNutrition(null, null);
   renderTraining(null);
-  renderSuivi(null, []);
+  renderSuivi(null, []); state.perf = emptyPerf(); renderPerf();
   await refreshProfileSelect('');
   showToast('Profil supprimé');
 }
@@ -2811,7 +3093,7 @@ async function init(){
     document.getElementById('deleteProfileBtn').style.display = 'none';
     renderNutrition(null, null);
     renderTraining(null);
-    renderSuivi(null, []);
+    renderSuivi(null, []); state.perf = emptyPerf(); renderPerf();
     refreshProfileSelect('');
   });
 
@@ -2823,7 +3105,7 @@ async function init(){
     document.getElementById('deleteProfileBtn').style.display = 'none';
     renderNutrition(null, null);
     renderTraining(null);
-    renderSuivi(null, []);
+    renderSuivi(null, []); state.perf = emptyPerf(); renderPerf();
   });
 
   document.getElementById('profileSelect').addEventListener('change', (e)=>{
@@ -2835,14 +3117,14 @@ async function init(){
       document.getElementById('deleteProfileBtn').style.display = 'none';
       renderNutrition(null, null);
       renderTraining(null);
-      renderSuivi(null, []);
+      renderSuivi(null, []); state.perf = emptyPerf(); renderPerf();
     }
   });
 
   await refreshProfileSelect();
   renderNutrition(null, null);
   renderTraining(null);
-  renderSuivi(null, []);
+  renderSuivi(null, []); state.perf = emptyPerf(); renderPerf();
 
   const profiles = await loadAllProfiles();
   if(profiles.length){
