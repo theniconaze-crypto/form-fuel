@@ -995,6 +995,271 @@ function normalizeAllergenText(s){
   return (s || '').toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 }
 
+/* =========================================================================
+   CALCUL NUTRITIONNEL RÉEL — les kcal/macros sont recalculés à partir des
+   ingrédients et de leurs quantités (table nutritionnelle intégrée), au lieu
+   de faire confiance aux chiffres annoncés par l'IA (souvent sous-évalués).
+========================================================================= */
+/* ---- TABLE NUTRITIONNELLE (pour 100 g ou 100 ml, aliments crus sauf mention "cuit") ----
+   v: [kcal, protéines, glucides, lipides]   ck: valeurs si l'ingrédient est "cuit"
+   u: poids (g) d'une pièce   ts / tc: poids (g) d'une c. à s. / c. à c.   z: ingrédient à 0 kcal */
+const NUTRI_DB = [
+  // produits laitiers
+  {k:['fromage blanc 0%','fromage blanc 0'], v:[46,7.5,4,0.2]},
+  {k:['fromage blanc 20%'], v:[105,8,4,5.5]},
+  {k:['fromage blanc'], v:[75,7.5,4,3]},
+  {k:['skyr'], v:[62,11,3.8,0.2]},
+  {k:['yaourt grec 0%','yaourt grec nature 0%'], v:[55,10,4,0.2], u:150},
+  {k:['yaourt grec'], v:[115,5.5,4,8.5], u:150},
+  {k:['yaourt nature','yaourt','yogourt'], v:[55,4.2,6.5,1.5], u:125},
+  {k:['cottage cheese','cottage'], v:[98,11,3.4,4.3]},
+  {k:['ricotta'], v:[150,11,3,10]},
+  {k:['mozzarella'], v:[250,18,1,19], u:125},
+  {k:['feta legere','feta light'], v:[170,15,2,11]},
+  {k:['feta'], v:[260,14,1.5,22]},
+  {k:['parmesan'], v:[400,36,0,28], ts:5, tc:2},
+  {k:['emmental','gruyere','fromage rape','comte'], v:[380,28,0.5,29], ts:8},
+  {k:['fromage de chevre','chevre'], v:[270,17,1,22]},
+  {k:['fromage frais','st moret','saint moret','boursin'], v:[190,7,3,17]},
+  {k:['mascarpone'], v:[410,4,3.5,42]},
+  {k:['creme fraiche legere'], v:[150,3,4,15], ts:15},
+  {k:['creme fraiche','creme liquide','creme'], v:[290,2.3,2.5,30], ts:15},
+  {k:['fromage'], v:[330,24,1,26]},
+  {k:['lait d amande','lait amande','boisson amande','boisson a l amande'], v:[15,0.5,0.3,1.1]},
+  {k:['lait de soja','boisson soja','boisson de soja','boisson vegetale','lait vegetal'], v:[40,3.3,2.5,1.8]},
+  {k:['lait d avoine','boisson avoine','boisson a l avoine'], v:[45,1,8,1.5]},
+  {k:['lait de coco'], v:[180,1.8,3,18], ts:15},
+  {k:['lait ecreme'], v:[34,3.4,5,0.1]},
+  {k:['lait entier'], v:[64,3.3,4.7,3.6]},
+  {k:['lait demi-ecreme','lait demi ecreme','lait'], v:[46,3.3,4.8,1.6]},
+  {k:['whey','proteine en poudre','poudre de proteine','poudre proteinee','isolat'], v:[390,80,6,6], u:30},
+  {k:['beurre'], v:[745,0.6,0.6,82], ts:14, tc:5, u:10},
+  // œufs
+  {k:['blanc d oeuf','blancs d oeuf','blanc oeuf'], v:[47,10.5,0.7,0.2], u:33},
+  {k:['jaune d oeuf','jaunes d oeuf'], v:[320,16,0.6,27], u:18},
+  {k:['oeuf'], v:[143,12.5,0.7,10], u:55},
+  // viandes / poissons (crus)
+  {k:['blanc de poulet','filet de poulet','escalope de poulet','poulet'], v:[110,23,0,1.5], ck:[155,31,0,3.5]},
+  {k:['cuisse de poulet'], v:[140,20,0,6.5]},
+  {k:['dinde','blanc de dinde','escalope de dinde'], v:[105,23,0,1.2], ck:[150,30,0,3]},
+  {k:['boeuf hache 5','steak hache 5','viande hachee 5'], v:[125,21,0,5], ck:[175,28,0,7]},
+  {k:['boeuf hache 15','steak hache 15','boeuf hache 20'], v:[215,18,0,15]},
+  {k:['boeuf hache','steak hache','viande hachee'], v:[175,20,0,10]},
+  {k:['boeuf','steak','rumsteck','bavette','entrecote'], v:[150,21,0,7]},
+  {k:['filet de porc','porc'], v:[120,22,0,3.5]},
+  {k:['jambon'], v:[110,18,1,4], u:40},
+  {k:['lardons'], v:[260,16,0.5,22]},
+  {k:['saumon fume'], v:[180,23,0,10]},
+  {k:['saumon'], v:[205,20,0,13], ck:[230,25,0,14]},
+  {k:['cabillaud','colin','lieu','merlu','poisson blanc'], v:[80,18,0,0.7]},
+  {k:['thon en boite','thon au naturel','thon'], v:[115,25,0,1.2]},
+  {k:['maquereau'], v:[200,18,0,14]},
+  {k:['sardine'], v:[200,24,0,11]},
+  {k:['truite'], v:[140,20,0,6]},
+  {k:['dorade','bar '], v:[100,19,0,3]},
+  {k:['crevette'], v:[90,19,0.5,1]},
+  {k:['tofu'], v:[120,13,1.5,7]},
+  {k:['tempeh'], v:[190,19,9,11]},
+  {k:['seitan'], v:[120,25,4,2]},
+  // féculents
+  {k:['flocons d avoine','flocons avoine','avoine','porridge'], v:[370,13,60,7], ts:8, tc:3},
+  {k:['riz complet'], v:[350,7.5,73,2.5], ck:[125,2.7,26,1]},
+  {k:['riz'], v:[350,7,77,0.6], ck:[130,2.7,28,0.3]},
+  {k:['pates completes','pates'], v:[355,12.5,70,1.8], ck:[155,5.8,29,1.2]},
+  {k:['spaghetti','tagliatelle','penne','fusilli','macaroni'], v:[355,12.5,72,1.5], ck:[155,5.8,30,0.9]},
+  {k:['semoule','couscous'], v:[360,12,73,1.5], ck:[112,3.8,23,0.2]},
+  {k:['quinoa'], v:[365,14,60,6], ck:[120,4.4,21,1.9]},
+  {k:['boulgour'], v:[340,12,64,1.5], ck:[85,3,17,0.2]},
+  {k:['patate douce'], v:[86,1.6,20,0.1]},
+  {k:['pomme de terre'], v:[80,2,17,0.1], u:150},
+  {k:['pain complet','pain de mie complet'], v:[250,9,45,3], u:35},
+  {k:['pain'], v:[275,9,53,1.5], u:35},
+  {k:['wrap','tortilla'], v:[300,8,50,7], u:60},
+  {k:['galette de riz','galettes de riz','riz souffle'], v:[380,8,80,3], u:9},
+  {k:['granola'], v:[440,10,62,16], ts:10},
+  {k:['muesli'], v:[370,10,65,6], ts:10},
+  {k:['mais'], v:[100,3,19,1.3]},
+  // légumineuses
+  {k:['pois chiche'], v:[360,20,50,6], ck:[140,8,19,3]},
+  {k:['lentille'], v:[335,25,48,1.5], ck:[115,9,17,0.5]},
+  {k:['haricots rouges','haricot rouge','haricots blancs','haricot blanc'], v:[330,22,47,1.5], ck:[125,8,17,0.5]},
+  {k:['houmous','hummus'], v:[230,7,12,18], ts:20},
+  // fruits
+  {k:['banane'], v:[89,1.1,21,0.3], u:120},
+  {k:['pomme'], v:[52,0.3,12,0.2], u:150},
+  {k:['poire'], v:[57,0.4,13,0.1], u:160},
+  {k:['orange'], v:[47,0.9,10,0.1], u:150},
+  {k:['clementine','mandarine'], v:[47,0.8,10,0.2], u:70},
+  {k:['kiwi'], v:[61,1.1,12,0.5], u:75},
+  {k:['mangue'], v:[60,0.8,14,0.4]},
+  {k:['ananas'], v:[50,0.5,12,0.1]},
+  {k:['fraise'], v:[33,0.7,6,0.3]},
+  {k:['fruits rouges','framboise','myrtille','mure','cerise'], v:[45,1,9,0.4]},
+  {k:['raisin sec','raisins secs'], v:[300,3,70,0.5]},
+  {k:['datte'], v:[280,2,65,0.4], u:8},
+  {k:['abricot sec','abricots secs'], v:[240,3.5,50,0.5]},
+  {k:['compote'], v:[50,0.3,11,0.1]},
+  {k:['jus d orange','jus de fruit'], v:[45,0.7,10,0.2]},
+  {k:['avocat'], v:[160,2,2,15], u:130},
+  {k:['fruit'], v:[55,0.6,12,0.2], u:130},
+  // légumes
+  {k:['brocoli'], v:[34,2.8,4,0.4]},
+  {k:['epinard'], v:[23,2.9,1.5,0.4]},
+  {k:['courgette'], v:[17,1.2,2,0.3], u:200},
+  {k:['tomate cerise'], v:[18,0.9,3,0.2]},
+  {k:['tomates concassees','tomate concassee','coulis de tomate','sauce tomate','passata'], v:[35,1.5,6,0.3], u:400},
+  {k:['tomate'], v:[18,0.9,3,0.2], u:120},
+  {k:['carotte'], v:[40,0.9,8,0.2], u:80},
+  {k:['poivron'], v:[28,1,5,0.3], u:150},
+  {k:['oignon','echalote'], v:[40,1.1,8,0.1], u:100},
+  {k:['champignon'], v:[25,3,1,0.3]},
+  {k:['haricots verts','haricot vert'], v:[31,2,4,0.2]},
+  {k:['salade','laitue','roquette','mache','mesclun'], v:[15,1.3,1.5,0.2]},
+  {k:['concombre'], v:[14,0.7,2,0.1], u:300},
+  {k:['chou-fleur','chou fleur','chou'], v:[25,2,3,0.3]},
+  {k:['aubergine'], v:[25,1,3,0.2], u:250},
+  {k:['celeri'], v:[16,0.7,2,0.2]},
+  {k:['poireau'], v:[30,2,4,0.3], u:150},
+  {k:['petits pois','petit pois'], v:[80,5,12,0.4]},
+  {k:['soupe de legumes','soupe','veloute'], v:[35,1.2,5,1]},
+  {k:['legume'], v:[30,2,4,0.3]},
+  // matières grasses, oléagineux, sucrants
+  {k:['huile'], v:[900,0,0,100], ts:14, tc:4.5},
+  {k:['beurre de cacahuete','beurre de cacahuetes','beurre d arachide','beurre de noix','puree de cacahuete'], v:[590,25,12,50], ts:16, tc:5.5},
+  {k:['puree d amande','beurre d amande'], v:[610,21,7,55], ts:16, tc:5.5},
+  {k:['noix de coco rapee','noix de coco','coco rapee','coco'], v:[660,6,6,64], ts:6, tc:2},
+  {k:['amande'], v:[580,21,9,51]},
+  {k:['noix de cajou','cajou'], v:[580,18,28,45]},
+  {k:['noisette'], v:[650,15,7,62]},
+  {k:['noix'], v:[650,15,7,65]},
+  {k:['cacahuete','arachide'], v:[590,26,10,50]},
+  {k:['pistache'], v:[570,20,17,45]},
+  {k:['graines de chia','chia'], v:[490,17,8,31], ts:12, tc:4}, 
+  {k:['graines de lin','lin'], v:[530,18,2,42], ts:10, tc:3.5},
+  {k:['graines de courge'], v:[560,30,5,46]},
+  {k:['graines de tournesol'], v:[580,21,12,48]},
+  {k:['sesame'], v:[590,18,10,50], ts:9, tc:3},
+  {k:['cacao non sucre','cacao'], v:[230,20,12,14], ts:8, tc:3},
+  {k:['chocolat noir'], v:[560,8,35,40], u:10},
+  {k:['chocolat'], v:[540,7,55,32], u:10},
+  {k:['miel'], v:[320,0.3,80,0], ts:21, tc:7},
+  {k:['sirop d erable','sirop'], v:[260,0,67,0], ts:20, tc:7},
+  {k:['confiture'], v:[250,0.4,60,0], ts:20, tc:7},
+  {k:['sucre'], v:[400,0,100,0], ts:12, tc:5},
+  {k:['mayonnaise'], v:[700,1,1,77], ts:15, tc:5},
+  {k:['pesto'], v:[450,5,5,45], ts:15, tc:5},
+  {k:['sauce soja'], v:[60,6,6,0], ts:15, tc:5},
+  {k:['moutarde'], v:[70,4,5,4], ts:15, tc:5},
+  {k:['ketchup'], v:[100,1,24,0.1], ts:17, tc:5},
+  {k:['vinaigrette'], v:[400,0.5,4,42], ts:15, tc:5},
+  {k:['jus de citron','citron'], v:[25,0.4,7,0.2], z:true, u:60},
+  // quasi-zéro
+  {k:['eau','cafe','the ','infusion','sel','poivre','epice','cannelle','curry','paprika','cumin','curcuma','vanille','gingembre','persil','ciboulette','basilic','coriandre','menthe','thym','romarin','origan','herbes','bouillon','vinaigre','ail','levure','piment','aneth','estragon'], v:[0,0,0,0], z:true}
+];
+
+function nutriNorm(s){
+  return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/œ/g, 'oe').replace(/[’']/g, ' ').replace(/\s*%/g, '%').replace(/\s+/g, ' ').trim();
+}
+
+function nutriFind(txt){
+  const t = ' ' + txt + ' ';
+  let best = null, bestLen = 0;
+  for(const e of NUTRI_DB){
+    for(const k of e.k){
+      const kk = k.endsWith(' ') ? k : k;
+      const re = new RegExp('(^|[^a-z0-9])' + kk.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(s|x)?([^a-z0-9]|$)');
+      if(re.test(t) && kk.trim().length > bestLen){ best = e; bestLen = kk.trim().length; }
+    }
+  }
+  return best;
+}
+
+/* Extrait la quantité en grammes d'un ingrédient. Retourne {g, entry, zero} ou null si non interprétable. */
+function nutriParse(text){
+  const raw = String(text || '');
+  const t = nutriNorm(raw);
+  const entry = nutriFind(t);
+  const cooked = /\bcuit/.test(t) && !/\bcru/.test(t);
+  if(/(^|[^a-z])eau (ou|et\/ou) /.test(t)) return {g:0, entry, zero:true, cooked};
+  if(/^(sel|poivre|ail|epice|sel, poivre)/.test(t) && !/^\d/.test(t)) return {g:0, entry, zero:true, cooked};
+  const m = t.match(/^(?:environ |~ ?)?(\d+\/\d+|\d+(?:[.,]\d+)?)(?:\s*(?:-|a)\s*\d+(?:[.,]\d+)?)?\s*(kg|g|ml|cl|dl|l|c\.? ?a\.? ?s\.?|c\.? ?a\.? ?c\.?|cuilleres? a soupe|cuilleres? a cafe|tranches?|doses?|poignees?|pots?|verres?|noix de beurre|cubes?|portions?|filets?|gousses?|brins?|boites?)?(?=\s|$|\()/);
+  if(!m){
+    // pas de quantité chiffrée : "1 poignée…" géré plus haut, sinon on ne sait pas
+    if(/^(une? )?(poignee|filet|pincee|noix de beurre)/.test(t)){
+      if(/^(une? )?poignee/.test(t)) return {g:30, entry, cooked};
+      if(/^(une? )?filet/.test(t)) return {g:(entry && entry.ts) || 10, entry, cooked};
+      if(/^(une? )?pincee/.test(t)) return {g:0, entry, zero:true, cooked};
+      return {g:10, entry, cooked};
+    }
+    if(entry && entry.z) return {g:0, entry, zero:true, cooked};
+    return {g:null, entry, cooked};
+  }
+  const num = m[1].includes('/') ? Number(m[1].split('/')[0]) / Number(m[1].split('/')[1]) : parseFloat(m[1].replace(',', '.'));
+  const unit = (m[2] || '').replace(/[\s.]/g, '');
+  let g = null;
+  const dens = (entry && entry.k[0] && /huile/.test(entry.k[0])) ? 0.92 : 1;
+  if(unit === 'g') g = num;
+  else if(unit === 'kg') g = num * 1000;
+  else if(unit === 'ml') g = num * dens;
+  else if(unit === 'cl') g = num * 10 * dens;
+  else if(unit === 'dl') g = num * 100 * dens;
+  else if(unit === 'l') g = num * 1000 * dens;
+  else if(/^cas$|cuillere.*soupe/.test(unit)) g = num * ((entry && entry.ts) || 15);
+  else if(/^cac$|cuillere.*cafe/.test(unit)) g = num * ((entry && entry.tc) || 5);
+  else if(/^tranche/.test(unit)) g = num * ((entry && entry.u) || 35);
+  else if(/^dose/.test(unit)) g = num * ((entry && entry.u) || 30);
+  else if(/^poignee/.test(unit)) g = num * 30;
+  else if(/^pot/.test(unit)) g = num * ((entry && entry.u) || 125);
+  else if(/^verre/.test(unit)) g = num * 200;
+  else if(/^noixdebeurre/.test(unit)) g = num * 10;
+  else if(/^cube|^gousse|^brin/.test(unit)) g = 0;
+  else if(/^filet/.test(unit)) g = num * ((entry && entry.tc) || 5);
+  else if(/^boite/.test(unit)) g = num * ((entry && entry.u) || 200);
+  else if(/^portion/.test(unit)) g = num * ((entry && entry.u) || 100);
+  else if(!unit){
+    // pièces : "2 œufs", "1 banane", "1 boîte de tomates concassées"
+    if(/^\S*\s*boite/.test(t.replace(/^[\d.,\/]+\s*/, '') ) || /boite/.test(t)) g = num * ((entry && entry.u) || 200);
+    else if(entry && entry.u) g = num * entry.u;
+    else if(entry && entry.z) g = 0;
+  }
+  return {g, entry, cooked};
+}
+
+/* Macros d'un ingrédient. fb = secours IA {g,kcal,p,c,f} utilisé si l'aliment n'est pas dans la table. */
+function nutriIngredient(text, fb, ratio){
+  const pr = nutriParse(text);
+  const zero = {kcal:0, p:0, c:0, f:0, g:0, src:'zero'};
+  if(pr.zero) return zero;
+  if(pr.entry && pr.g != null){
+    if(pr.entry.z && pr.entry.v[0] === 0) return zero;
+    const v = (pr.cooked && pr.entry.ck) ? pr.entry.ck : pr.entry.v;
+    const q = pr.g / 100;
+    return {kcal:v[0]*q, p:v[1]*q, c:v[2]*q, f:v[3]*q, g:pr.g, src:'db'};
+  }
+  if(fb && Number.isFinite(fb.kcal) && fb.kcal >= 0){
+    const r = (pr.g != null && fb.g > 0) ? pr.g / fb.g : (ratio || 1);
+    return {kcal:fb.kcal*r, p:(fb.p||0)*r, c:(fb.c||0)*r, f:(fb.f||0)*r, g:pr.g || 0, src:'ai'};
+  }
+  if(pr.g != null && pr.g > 0){
+    const q = pr.g / 100; // aliment inconnu : estimation moyenne prudente
+    return {kcal:150*q, p:7*q, c:18*q, f:5*q, g:pr.g, src:'guess'};
+  }
+  return Object.assign({}, zero, {src:'unknown'});
+}
+
+function nutriMeal(list, fbs, ratio){
+  const tot = {kcal:0, p:0, c:0, f:0, guess:0, known:0};
+  list.forEach((txt, i)=>{
+    const r = nutriIngredient(txt, fbs && fbs[i], ratio);
+    tot.kcal += r.kcal; tot.p += r.p; tot.c += r.c; tot.f += r.f;
+    if(r.src === 'db' || r.src === 'ai') tot.known++;
+    if(r.src === 'guess' || r.src === 'unknown') tot.guess++;
+  });
+  return tot;
+}
+
+
 /* ---- RECETTES : vraies recettes avec ingrédients et étapes ---- */
 const RECIPES = {
   petitdej: [
@@ -1008,7 +1273,7 @@ const RECIPES = {
      steps:['Battez les œufs avec sel et poivre.','Faites revenir les épinards 2 min dans une poêle huilée.','Ajoutez les œufs battus, cuisez à feu doux jusqu\'à prise.','Servez avec la tranche de pain complet.']},
     {t:'Skyr, fruits rouges & granola', kcal:320, p:22, c:45, f:6, prep:5, objectifs:['perte','maintien','prise','recomposition'],
      allergenes:['lait','gluten'],
-     ing:['200 g de skyr ou fromage blanc','1 poignée de fruits rouges (frais ou surgelés)','30 g de granola ou flocons d\'avoine grillés','1 filet de miel (optionnel)'],
+     ing:['200 g de skyr nature','1 poignée de fruits rouges (frais ou surgelés)','30 g de granola','1 filet de miel (optionnel)'],
      steps:['Versez le skyr dans un bol.','Ajoutez les fruits rouges.','Parsemez de granola et d\'un filet de miel.']}
   ],
   dejeuner: [
@@ -1022,7 +1287,7 @@ const RECIPES = {
      steps:['Faites revenir l\'oignon émincé dans l\'huile d\'olive.','Ajoutez le bœuf haché et faites-le dorer.','Versez les tomates concassées, laissez mijoter 12 min.','Faites cuire les pâtes, mélangez avec la sauce et le basilic.']},
     {t:'Salade de poulet, quinoa & légumes croquants', kcal:430, p:42, c:38, f:12, prep:20, objectifs:['perte','recomposition'],
      allergenes:['lait'],
-     ing:['120 g de blanc de poulet cuit', '50 g de quinoa (poids cru)','tomates cerises','1/2 concombre','30 g de feta légère','vinaigrette au citron'],
+     ing:['120 g de blanc de poulet cuit', '50 g de quinoa (poids cru)','100 g de tomates cerises','1/2 concombre','30 g de feta légère','1 c. à s. de vinaigrette au citron'],
      steps:['Faites cuire le quinoa puis laissez-le refroidir.','Coupez le poulet, les tomates et le concombre.','Mélangez tous les ingrédients dans un saladier.','Ajoutez la feta émiettée et la vinaigrette au citron.']}
   ],
   diner: [
@@ -1032,11 +1297,11 @@ const RECIPES = {
      steps:['Épluchez et coupez la patate douce en cubes, faites-la rôtir au four 20 min (200°C).','Faites cuire le saumon à la poêle 4 min de chaque côté.','Disposez les épinards, la patate douce et le saumon dans un bol.','Ajoutez l\'avocat et un filet de citron.']},
     {t:'Tofu sauté, riz & légumes croquants', kcal:460, p:26, c:60, f:13, prep:20, objectifs:['perte','maintien','recomposition'],
      allergenes:['soja'],
-     ing:['150 g de tofu ferme','60 g de riz (poids cru)','1 poivron','1 courgette','sauce soja, gingembre frais'],
+     ing:['150 g de tofu ferme','60 g de riz (poids cru)','1 poivron','1 courgette','1 c. à s. de sauce soja','gingembre frais'],
      steps:['Coupez le tofu en dés et faites-le dorer à la poêle.','Ajoutez le poivron et la courgette émincés, faites sauter 5-6 min.','Assaisonnez avec sauce soja et gingembre râpé.','Servez sur un lit de riz cuit.']},
     {t:'Soupe de légumes & œufs pochés', kcal:270, p:16, c:26, f:11, prep:20, objectifs:['perte','recomposition'],
      allergenes:['oeuf'],
-     ing:['courgette, carotte, poireau au choix','1 bouillon de légumes','2 œufs','persil frais'],
+     ing:['300 g de légumes (courgette, carotte, poireau)','1 bouillon de légumes','2 œufs','persil frais'],
      steps:['Faites revenir les légumes coupés en morceaux puis couvrez de bouillon.','Laissez mijoter 15 min jusqu\'à tendreté.','Pochez les œufs 3 min dans une eau frémissante.','Servez la soupe avec l\'œuf poché et le persil.']}
   ],
   collation: [
@@ -1046,14 +1311,20 @@ const RECIPES = {
      steps:['Mélangez la whey avec l\'eau ou le lait au shaker.','Dégustez avec les amandes.']},
     {t:'Yaourt grec & fruit frais', kcal:160, p:13, c:20, f:3, prep:2, objectifs:['perte','recomposition'],
      allergenes:['lait'],
-     ing:['150 g de yaourt grec','1 fruit de saison'],
+     ing:['150 g de yaourt grec 0%','1 fruit de saison'],
      steps:['Coupez le fruit en morceaux.','Mélangez avec le yaourt grec.']},
     {t:'Houmous, bâtonnets de légumes & galette de riz', kcal:200, p:6, c:21, f:10, prep:5, objectifs:['perte','maintien','recomposition'],
      allergenes:['sesame','celeri'],
-     ing:['3 c. à s. de houmous','carotte et céleri en bâtonnets','1 galette de riz soufflé'],
+     ing:['3 c. à s. de houmous','100 g de carotte et céleri en bâtonnets','1 galette de riz soufflé'],
      steps:['Coupez les légumes en bâtonnets.','Trempez-les dans le houmous avec la galette de riz.']}
   ]
 };
+
+/* macros des recettes de base : recalculées depuis les ingrédients (plus de valeurs saisies à la main) */
+Object.keys(RECIPES).forEach(k=> RECIPES[k].forEach(r=>{
+  const m = nutriMeal(r.ing);
+  r.kcal = Math.round(m.kcal); r.p = Math.round(m.p); r.c = Math.round(m.c); r.f = Math.round(m.f);
+}));
 
 /* ---- Filtrage allergènes ----
    allergenList : tableau d'objets {id, label, custom}. Pour un allergène de la
@@ -1120,19 +1391,22 @@ function scaleIngredientText(text, factor){
     if(/^(tranche|dose)$/i.test(unit)) unit = pluralizeWord(unit, scaled);
     else if(!unit) rest = rest.replace(/^(\S+)/, w => pluralizeWord(w, scaled));
   }
+  rest = rest.replace(/\s*\(\s*\d+(?:[.,]\d+)?\s*(?:g|ml)\s*\)/i, ''); // ex. "(3 g)" devenu faux après mise à l'échelle
   return `${formatQtyNumber(scaled)}${unit ? ' ' + unit : ''} ${rest}`.replace(/\s+/g, ' ').trim();
 }
 
 function getScaledRecipe(recipe, targetKcal){
   const rawFactor = targetKcal / recipe.kcal;
   const factor = Math.min(SCALE_MAX, Math.max(SCALE_MIN, rawFactor));
+  const ing = recipe.ing.map(i => scaleIngredientText(i, factor));
+  const m = nutriMeal(ing);
   return {
     factor, rawFactor,
-    kcal: Math.round(recipe.kcal * factor),
-    p: Math.round(recipe.p * factor),
-    c: Math.round(recipe.c * factor),
-    f: Math.round(recipe.f * factor),
-    ing: recipe.ing.map(i => scaleIngredientText(i, factor))
+    kcal: Math.round(m.kcal),
+    p: Math.round(m.p),
+    c: Math.round(m.c),
+    f: Math.round(m.f),
+    ing
   };
 }
 
@@ -1336,7 +1610,16 @@ function aiPlanSignature(profile, plan){
 }
 function getValidAiPlan(profile, plan){
   const ap = profile && profile.aiPlan;
-  return (ap && ap.sig === aiPlanSignature(profile, plan) && Array.isArray(ap.meals) && ap.meals.length === getMeals(profile).length) ? ap : null;
+  const ok = ap && ap.sig === aiPlanSignature(profile, plan) && Array.isArray(ap.meals) && ap.meals.length === getMeals(profile).length;
+  if(!ok) return null;
+  // anciens plans (macros annoncées par l'IA) : on recalcule d'après les ingrédients
+  ap.meals.forEach(m=>{
+    if(m.calc || !Array.isArray(m.ing)) return;
+    const t = nutriMeal(m.ing);
+    if(t.kcal > 0){ m.kcal = Math.round(t.kcal); m.p = Math.round(t.p); m.c = Math.round(t.c); m.f = Math.round(t.f); }
+    m.calc = true;
+  });
+  return ap;
 }
 function toNum(v){ const n = parseFloat(String(v).replace(',', '.')); return Number.isFinite(n) ? n : NaN; }
 
@@ -1404,9 +1687,9 @@ function buildAiMessages(profile, plan, feedback){
     `Répartition imposée (${targets.length} repas, dans cet ordre) :`,
     targets.map((t,i)=> `${i+1}. ${t.label} : ~${t.kcal} kcal, ${t.p} g protéines, ${t.c} g glucides, ${t.f} g lipides`).join('\n'),
     allerg.length ? `ALLERGÈNES À EXCLURE STRICTEMENT (aucun ingrédient, dérivé ou sauce en contenant) : ${allerg.join(', ')}.` : 'Aucun allergène à exclure.',
-    "Règles : recettes de cuisine française/méditerranéenne courante, ingrédients de supermarché, 3 à 6 étapes courtes par recette, temps de préparation réaliste. Varie les sources de protéines entre les repas. Petit-déjeuner et collations adaptés (pas de plat de dîner au petit-déjeuner). Chaque ingrédient commence par une quantité chiffrée avec unité (ex : \"150 g de blanc de poulet\", \"2 œufs\", \"1 c. à s. d'huile d'olive\"), poids crus. Les macros d'un repas doivent correspondre à la somme réaliste de ses ingrédients et rester proches de la cible du repas.",
+    "Règles : recettes de cuisine française/méditerranéenne courante, ingrédients de supermarché, 3 à 6 étapes courtes par recette, temps de préparation réaliste. Varie les sources de protéines entre les repas. Petit-déjeuner et collations adaptés (pas de plat de dîner au petit-déjeuner). Chaque ingrédient commence par une quantité chiffrée avec unité (ex : \"150 g de blanc de poulet\", \"2 œufs\", \"1 c. à s. d'huile d'olive\"), poids crus. Les macros d'un repas doivent correspondre à la somme RÉELLE de ses ingrédients (valeurs de la table CIQUAL, sans sous-estimer : huiles, beurre de cacahuète, noix de coco, fruits secs, fromages, féculents) et rester proches de la cible du repas : ajuste les quantités pour que la somme des ingrédients atteigne la cible (±10 %). Pour chaque ingrédient, donne son poids en grammes (ou ml) et ses macros pour cette quantité exacte.",
     feedback ? `CORRECTION À APPORTER : ${feedback}` : '',
-    'Format JSON exact : {"repas":[{"label":"<libellé du repas>","titre":"<nom de la recette>","prep_min":<entier>,"kcal":<nombre>,"proteines_g":<nombre>,"glucides_g":<nombre>,"lipides_g":<nombre>,"ingredients":["..."],"etapes":["..."]}]} avec exactement ' + targets.length + ' éléments dans "repas", dans l\'ordre ci-dessus.'
+    'Format JSON exact : {"repas":[{"label":"<libellé du repas>","titre":"<nom de la recette>","prep_min":<entier>,"ingredients":[{"q":"250 g de fromage blanc 0%","g":250,"kcal":115,"p":19,"c":10,"f":0.5}],"etapes":["..."]}]} (q = texte affiché avec quantité, g = poids en grammes ou ml, kcal/p/c/f = macros de cet ingrédient pour cette quantité) avec exactement ' + targets.length + ' éléments dans "repas", dans l\'ordre ci-dessus.'
   ].filter(Boolean).join('\n\n');
   return [{role:'system', content: sys}, {role:'user', content: user}];
 }
@@ -1418,21 +1701,42 @@ function normalizeAiMeals(raw, profile, plan){
   const used = new Set();
   return meals.map((m, i)=>{
     const r = list[i] || {};
-    const p = toNum(r.proteines_g), c = toNum(r.glucides_g), f = toNum(r.lipides_g);
-    if(![p, c, f].every(Number.isFinite) || !(p*4 + c*4 + f*9 > 0) || !Array.isArray(r.ingredients) || !r.ingredients.length || !Array.isArray(r.etapes) || !r.titre){
+    if(!Array.isArray(r.ingredients) || !r.ingredients.length || !Array.isArray(r.etapes) || !r.titre){
       throw new Error('Réponse IA invalide (repas ' + (i + 1) + ').');
     }
+    // ingrédients : objets {q,g,kcal,p,c,f} (ou simples chaînes)
+    const items = r.ingredients.map(x=>{
+      if(x && typeof x === 'object'){
+        return {q: String(x.q || x.texte || x.nom || '').trim(), fb: {g: toNum(x.g), kcal: toNum(x.kcal), p: toNum(x.p), c: toNum(x.c), f: toNum(x.f)}};
+      }
+      return {q: String(x).trim(), fb: null};
+    }).filter(it=> it.q);
+    if(!items.length) throw new Error('Réponse IA invalide (repas ' + (i + 1) + ').');
+    const texts = items.map(it=> it.q), fbs = items.map(it=> it.fb);
+
+    // 1) macros RÉELLES de la recette de base, calculées depuis les ingrédients
+    let base = nutriMeal(texts, fbs, 1);
+    if(!(base.kcal > 0)){
+      // secours : macros annoncées au niveau du repas (ancien format)
+      const p = toNum(r.proteines_g), c = toNum(r.glucides_g), f = toNum(r.lipides_g);
+      if(![p, c, f].every(Number.isFinite) || !(p*4 + c*4 + f*9 > 0)) throw new Error('Réponse IA invalide (repas ' + (i + 1) + ').');
+      base = {kcal: p*4 + c*4 + f*9, p, c, f};
+    }
+    // 2) mise à l'échelle vers la cible kcal du repas
     const targetKcal = Math.round(plan.proteinG*m.pct*4 + plan.carbsG*m.pct*4 + plan.fatG*m.pct*9);
-    const kc = p*4 + c*4 + f*9;
-    const factor = Math.min(1.8, Math.max(0.5, targetKcal / kc));
+    const factor = Math.min(1.8, Math.max(0.5, targetKcal / base.kcal));
+    const scaled = texts.map(t=> scaleIngredientText(t, factor));
+    // 3) macros recalculées sur les quantités réellement affichées
+    let fin = nutriMeal(scaled, fbs, factor);
+    if(!(fin.kcal > 0)) fin = {kcal: base.kcal*factor, p: base.p*factor, c: base.c*factor, f: base.f*factor};
     let title = String(r.titre).trim().slice(0, 90);
     while(used.has(title)) title += ' (bis)';
     used.add(title);
     return {
       label: m.label, key: m.key, pct: m.pct, t: title,
-      prep: Math.round(toNum(r.prep_min)) || 15, targetKcal, factor,
-      kcal: Math.round(kc * factor), p: Math.round(p * factor), c: Math.round(c * factor), f: Math.round(f * factor),
-      ing: r.ingredients.map(x=> scaleIngredientText(String(x), factor)),
+      prep: Math.round(toNum(r.prep_min)) || 15, targetKcal, factor, calc: true,
+      kcal: Math.round(fin.kcal), p: Math.round(fin.p), c: Math.round(fin.c), f: Math.round(fin.f),
+      ing: scaled,
       steps: r.etapes.map(String)
     };
   });
@@ -1447,15 +1751,16 @@ function aiMaxDeviation(tot, plan){
 }
 
 async function generateAiPlan(profile, plan){
-  let feedback = '', best = null;
-  for(let attempt = 0; attempt < 2; attempt++){
+  let feedback = '', best = null, bestDev = Infinity;
+  for(let attempt = 0; attempt < 3; attempt++){
     setImgStatus(attempt ? '✨ Ajustement des recettes pour coller aux macros…' : '✨ L\'IA compose tes recettes…');
     const raw = await callPollJson(buildAiMessages(profile, plan, feedback));
     const meals = normalizeAiMeals(raw, profile, plan);
     const tot = sumAiMeals(meals);
-    best = {meals, tot};
-    if(aiMaxDeviation(tot, plan) <= 0.10) break;
-    feedback = `Ta proposition précédente totalisait ${tot.p} g de protéines, ${tot.c} g de glucides et ${tot.f} g de lipides, alors que les cibles sont ${plan.proteinG} g, ${plan.carbsG} g et ${plan.fatG} g. Ajuste les ingrédients et leurs quantités pour t'en rapprocher.`;
+    const dev = aiMaxDeviation(tot, plan);
+    if(dev < bestDev){ best = {meals, tot}; bestDev = dev; }
+    if(dev <= 0.10) break;
+    feedback = `Ta proposition précédente totalisait ${tot.p} g de protéines, ${tot.c} g de glucides et ${tot.f} g de lipides, alors que les cibles sont ${plan.proteinG} g, ${plan.carbsG} g et ${plan.fatG} g. Ajuste les ingrédients et leurs quantités pour t'en rapprocher (somme réelle des ingrédients).`;
   }
   return best;
 }
@@ -1513,7 +1818,7 @@ function aiRecipeCardHtml(m){
       <div class="recipe-head">
         <span class="recipe-title">✨ ${escapeHtml(m.t)}</span>
         <span class="recipe-meta">~${m.kcal} kcal (cible ${m.targetKcal} kcal) · ${m.prep} min</span>
-        <span class="recipe-meta">P ${m.p} g · G ${m.c} g · L ${m.f} g</span>
+        <span class="recipe-meta">P ${m.p} g · G ${m.c} g · L ${m.f} g · calculé d'après les ingrédients</span>
       </div>
       <details>
         <summary>Voir la recette (ingrédients &amp; étapes)</summary>
