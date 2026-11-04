@@ -431,6 +431,51 @@ tailwind.config = {
 .pill{background:#fff;border:1px solid #DED6BE;border-radius:20px;padding:4px 10px;font-size:12px;}
 .pill button{border:0;background:none;color:#B24A34;font-weight:700;padding:0 0 0 6px;min-height:0;}
 .perf-sep{margin:18px 0 4px;font-family:var(--font-display);text-transform:uppercase;letter-spacing:1px;font-size:14px;}
+
+/* ---------- écran de chargement (suggestions de plan) ---------- */
+.ff-loader{
+  position:fixed; inset:0; z-index:100; display:none; align-items:center; justify-content:center;
+  padding:calc(20px + env(safe-area-inset-top)) 20px calc(20px + env(safe-area-inset-bottom));
+  background:rgba(20,27,25,.88); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);
+}
+.ff-loader.show{display:flex; animation:ffLoaderIn .2s ease;}
+@keyframes ffLoaderIn{from{opacity:0;} to{opacity:1;}}
+.ff-loader-card{
+  width:100%; max-width:400px; background:var(--paper); color:var(--ink);
+  border-radius:16px; padding:26px 22px 20px; box-shadow:0 20px 60px rgba(0,0,0,.5);
+}
+.ff-loader-top{display:flex; align-items:center; gap:14px; margin-bottom:14px;}
+.ff-spinner{
+  flex:none; width:38px; height:38px; border-radius:50%;
+  border:4px solid var(--paper-alt); border-top-color:var(--accent); border-right-color:var(--accent);
+  animation:ffSpin .9s linear infinite;
+}
+@keyframes ffSpin{to{transform:rotate(360deg);}}
+.ff-loader-title{font-family:var(--font-display); font-size:19px; font-weight:600; letter-spacing:.3px; margin:0; line-height:1.2;}
+.ff-loader-detail{font-size:12.5px; color:var(--ink-dim); margin:3px 0 0; min-height:1.3em; font-weight:600;}
+.ff-loader-bar{height:6px; border-radius:99px; background:var(--paper-alt); overflow:hidden; margin:2px 0 16px;}
+.ff-loader-bar > i{display:block; height:100%; width:0; background:var(--accent); border-radius:99px; transition:width .4s ease;}
+.ff-steps{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:9px;}
+.ff-step{display:flex; align-items:center; gap:10px; font-size:13.5px; color:var(--ink-dim); transition:color .2s;}
+.ff-step .ff-dot{
+  flex:none; width:20px; height:20px; border-radius:50%; border:2px solid #D9D2BC; background:#fff;
+  display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; line-height:1; color:transparent;
+}
+.ff-step.active{color:var(--ink); font-weight:700;}
+.ff-step.active .ff-dot{border-color:var(--accent); background:var(--accent); animation:ffPulse 1.2s ease-in-out infinite;}
+.ff-step.done{color:var(--ink);}
+.ff-step.done .ff-dot{border-color:#5C8B6E; background:#5C8B6E; color:#fff;}
+@keyframes ffPulse{0%,100%{box-shadow:0 0 0 0 rgba(242,196,56,.55);} 50%{box-shadow:0 0 0 6px rgba(242,196,56,0);}}
+.ff-loader-foot{display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top:16px; min-height:30px;}
+.ff-loader-time{font-family:var(--font-mono); font-size:11.5px; color:var(--ink-dim);}
+.ff-loader-hide{
+  display:none; border:1px solid #D9D2BC; background:transparent; color:var(--ink);
+  border-radius:99px; padding:6px 14px; font-size:12.5px; font-weight:600;
+}
+.ff-loader-hide.show{display:inline-block;}
+@media (prefers-reduced-motion:reduce){
+  .ff-spinner{animation-duration:2.4s;} .ff-step.active .ff-dot{animation:none;} .ff-loader.show{animation:none;}
+}
 </style>
 </head>
 <body>
@@ -616,6 +661,24 @@ tailwind.config = {
 
 </div>
 
+
+<div class="ff-loader" id="ffLoader" role="alertdialog" aria-modal="true" aria-live="polite" aria-labelledby="ffLoaderTitle">
+  <div class="ff-loader-card">
+    <div class="ff-loader-top">
+      <div class="ff-spinner" aria-hidden="true"></div>
+      <div>
+        <p class="ff-loader-title" id="ffLoaderTitle">Génération en cours…</p>
+        <p class="ff-loader-detail" id="ffLoaderDetail"></p>
+      </div>
+    </div>
+    <div class="ff-loader-bar" aria-hidden="true"><i id="ffLoaderBar"></i></div>
+    <ol class="ff-steps" id="ffLoaderSteps"></ol>
+    <div class="ff-loader-foot">
+      <span class="ff-loader-time" id="ffLoaderTime">0 s</span>
+      <button type="button" class="ff-loader-hide" id="ffLoaderHide">Voir le plan</button>
+    </div>
+  </div>
+</div>
 
 <div class="toast" id="toast"></div>
 
@@ -841,6 +904,74 @@ function initAllergeneField(){
 
   renderAllergeneChips();
 }
+
+/* =========================================================================
+   ÉCRAN DE CHARGEMENT — suggestions de plan alimentaire
+   Phases : cibles → composition IA → vérification des macros → sauvegarde → photos
+   ========================================================================= */
+const LOADER_PHASES = [
+  {id:'targets', label:'Calcul des cibles de macros'},
+  {id:'compose', label:'Composition des recettes par l\'IA'},
+  {id:'check',   label:'Vérification des macros'},
+  {id:'save',    label:'Enregistrement du plan'},
+  {id:'photos',  label:'Création des photos'}
+];
+const ffLoader = {
+  active:false, idx:-1, timer:null, t0:0,
+  els(){
+    return {root:document.getElementById('ffLoader'), title:document.getElementById('ffLoaderTitle'),
+      detail:document.getElementById('ffLoaderDetail'), bar:document.getElementById('ffLoaderBar'),
+      steps:document.getElementById('ffLoaderSteps'), time:document.getElementById('ffLoaderTime'),
+      hide:document.getElementById('ffLoaderHide')};
+  },
+  show(){
+    const e = this.els(); if(!e.root) return;
+    this.active = true; this.idx = -1; this.t0 = Date.now();
+    e.steps.innerHTML = LOADER_PHASES.map(p=> `<li class="ff-step" data-phase="${p.id}"><span class="ff-dot">✓</span><span class="ff-lbl">${p.label}</span></li>`).join('');
+    e.hide.classList.remove('show');
+    e.hide.onclick = ()=> this.hide();
+    e.time.textContent = '0 s';
+    clearInterval(this.timer);
+    this.timer = setInterval(()=>{ e.time.textContent = Math.round((Date.now() - this.t0)/1000) + ' s'; }, 1000);
+    e.root.classList.add('show');
+    document.body.style.overflow = 'hidden';
+  },
+  phase(id, detail, label){
+    if(!this.active) return;
+    const e = this.els(); if(!e.root) return;
+    const i = LOADER_PHASES.findIndex(p=> p.id === id); if(i < 0) return;
+    this.idx = i;
+    e.steps.querySelectorAll('.ff-step').forEach((li, k)=>{
+      li.classList.toggle('done', k < i);
+      li.classList.toggle('active', k === i);
+    });
+    if(label){ const l = e.steps.querySelector(`[data-phase="${id}"] .ff-lbl`); if(l) l.textContent = label; }
+    const cur = LOADER_PHASES[i];
+    e.title.textContent = label || cur.label;
+    e.detail.textContent = detail || '';
+    e.bar.style.width = Math.round((i / LOADER_PHASES.length) * 100 + 6) + '%';
+    e.hide.classList.toggle('show', id === 'photos');
+  },
+  detail(text){
+    if(!this.active) return;
+    const e = this.els(); if(e.detail) e.detail.textContent = text || '';
+  },
+  hide(){
+    const e = this.els();
+    clearInterval(this.timer);
+    this.active = false;
+    if(e.root) e.root.classList.remove('show');
+    document.body.style.overflow = '';
+  },
+  finish(){
+    if(!this.active) return;
+    const e = this.els();
+    e.steps.querySelectorAll('.ff-step').forEach(li=>{ li.classList.remove('active'); li.classList.add('done'); });
+    e.bar.style.width = '100%';
+    e.title.textContent = 'Terminé ✨';
+    setTimeout(()=> this.hide(), 350);
+  }
+};
 
 function showToast(msg){
   const t = document.getElementById('toast');
@@ -1540,6 +1671,7 @@ async function generateAllRecipeImages(){
   let done = 0, failed = 0;
   for(const slot of slots){
     setImgStatus(`Génération ${done + failed + 1} / ${slots.length}…`);
+    ffLoader.detail(`Photo ${done + failed + 1} sur ${slots.length}${failed ? ` · ${failed} échec(s)` : ''}`);
     const ok = await generateForSlot(slot, false);
     if(ok) done++; else { failed++; if(failed >= 2) break; }  // on s'arrête si ça échoue (clé / crédits)
   }
@@ -1754,10 +1886,15 @@ async function generateAiPlan(profile, plan){
   let feedback = '', best = null, bestDev = Infinity;
   for(let attempt = 0; attempt < 3; attempt++){
     setImgStatus(attempt ? '✨ Ajustement des recettes pour coller aux macros…' : '✨ L\'IA compose tes recettes…');
+    ffLoader.phase('compose', attempt
+      ? `Nouvelle proposition pour mieux coller aux macros (essai ${attempt + 1}/3)`
+      : 'L\'IA imagine une journée complète (peut prendre 20 à 60 s)');
     const raw = await callPollJson(buildAiMessages(profile, plan, feedback));
+    ffLoader.phase('check', `Mise à l'échelle des quantités et calcul réel d'après les ingrédients${attempt ? ` (essai ${attempt + 1}/3)` : ''}`);
     const meals = normalizeAiMeals(raw, profile, plan);
     const tot = sumAiMeals(meals);
     const dev = aiMaxDeviation(tot, plan);
+    ffLoader.detail(`Écart max avec tes cibles : ${Math.round(dev*100)} %${dev <= 0.10 ? ' — OK ✅' : ' — ajustement nécessaire'}`);
     if(dev < bestDev){ best = {meals, tot}; bestDev = dev; }
     if(dev <= 0.10) break;
     feedback = `Ta proposition précédente totalisait ${tot.p} g de protéines, ${tot.c} g de glucides et ${tot.f} g de lipides, alors que les cibles sont ${plan.proteinG} g, ${plan.carbsG} g et ${plan.fatG} g. Ajuste les ingrédients et leurs quantités pour t'en rapprocher (somme réelle des ingrédients).`;
@@ -1778,8 +1915,11 @@ async function runAiSuggestions(profile, plan){
   aiPlanBusy = true;
   document.querySelectorAll('#shuffleRecipesBtn, #applyNbRepasBtn, #genAllImgBtn').forEach(b=> b.disabled = true);
   let ok = false;
+  ffLoader.show();
+  ffLoader.phase('targets', `${plan.calTarget} kcal · P ${plan.proteinG} g · G ${plan.carbsG} g · L ${plan.fatG} g`);
   try{
     const res = await generateAiPlan(profile, plan);
+    ffLoader.phase('save', 'Remplacement de l\'ancien plan et sauvegarde du profil');
     await purgeAiPlanImages(profile.aiPlan);
     profile.aiPlan = {sig: aiPlanSignature(profile, plan), createdAt: Date.now(), meals: res.meals};
     const saved = await saveProfile(profile);
@@ -1788,13 +1928,17 @@ async function runAiSuggestions(profile, plan){
     aiPlanBusy = false;
     renderNutrition(profile, plan);
     showToast(saved ? 'Recettes IA générées ✨ — création des photos…' : 'Recettes générées, mais la sauvegarde a échoué ⚠️');
+    ffLoader.phase('photos', 'Préparation des photos…');
     await generateAllRecipeImages();
+    ffLoader.finish();
   }catch(err){
+    ffLoader.hide();
     console.error('Recettes IA :', err);
     setImgStatus('⚠️ ' + (err.message || 'Échec de la génération IA') + ' — tes recettes précédentes sont conservées.');
     showToast('Génération IA impossible : ' + (err.message || 'erreur inconnue'));
   }finally{
     aiPlanBusy = false;
+    if(!ok) ffLoader.hide();
     if(!ok) document.querySelectorAll('#shuffleRecipesBtn, #applyNbRepasBtn, #genAllImgBtn').forEach(b=> b.disabled = false);
   }
 }
