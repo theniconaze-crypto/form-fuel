@@ -3422,8 +3422,59 @@ function buildPrintDocument(title, bodyHtml){
   }
   .print-toolbar .btn-print{background:#2A2410; color:#F2C438;}
   .print-toolbar .btn-back{background:transparent; color:#2A2410; border:1.5px solid #2A2410 !important;}
+  *{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .no-break{ page-break-inside:avoid; break-inside:avoid; }
+  .sec{ margin:22px 0 12px; font-size:16px; text-transform:uppercase; letter-spacing:.08em; padding-bottom:6px; border-bottom:2px solid #F2C438; }
+  .note{ margin:0 0 12px; padding:9px 12px; border-radius:8px; font-size:12px; line-height:1.5; }
+  .note-ok{ background:#EAF3EC; color:#33513E; }
+  .note-warn{ background:#FBEDE8; color:#7A3A28; }
+  .hist{ width:100%; border-collapse:collapse; font-size:12px; }
+  .hist th{ text-align:left; background:#f1eee3; padding:5px 8px; }
+  .hist td{ padding:5px 8px; border-bottom:1px solid #eee; }
+  /* bilan du jour */
+  .day{ background:#1B2321; color:#EDE9DC; border-radius:14px; padding:16px 18px; margin-bottom:6px; }
+  .day-top{ display:flex; gap:20px; align-items:center; margin-bottom:12px; }
+  .day-kcal b{ display:block; font-size:38px; line-height:1; color:#F2C438; font-family:-apple-system,BlinkMacSystemFont,'Oswald',Arial,sans-serif; }
+  .day-kcal span{ font-size:11px; text-transform:uppercase; letter-spacing:.1em; color:#9FAAA2; }
+  .day-meta{ font-size:12px; line-height:1.7; color:#cfd6cf; }
+  .day-meta b{ color:#fff; }
+  .day .mt{ background:rgba(255,255,255,.08); }
+  .day .mt b{ color:#fff; }
+  .day .mt span{ color:#b9c4be; }
+  /* macros (partagé jour + recette) */
+  .macros{ display:flex; gap:8px; }
+  .mt{ flex:1; background:#F6F2E8; border-radius:9px; padding:8px 10px; border-top:3px solid #ccc; text-align:center; }
+  .mt b{ display:block; font-size:16px; color:#252A24; }
+  .mt span{ display:block; font-size:10px; text-transform:uppercase; letter-spacing:.06em; color:#6E7568; margin-top:1px; }
+  .mt-k{ border-top-color:#F2C438; } .mt-p{ border-top-color:#D9583F; } .mt-c{ border-top-color:#E3A73B; } .mt-f{ border-top-color:#4C8FB0; }
+  .mbar{ display:flex; height:7px; border-radius:4px; overflow:hidden; margin-top:8px; background:#eee; }
+  .mbar i{ display:block; height:100%; }
+  /* carte recette */
+  .rcp{ border:1px solid #E4DDC8; border-radius:14px; overflow:hidden; margin-bottom:18px; page-break-inside:avoid; break-inside:avoid; background:#fff; }
+  .rcp-missing{ padding:14px; font-size:12px; color:#7A3A28; background:#FBEDE8; }
+  .rcp-hero{ position:relative; height:200px; background:#ECE5D3; }
+  .rcp-hero img{ display:block; width:100%; height:200px; object-fit:cover; }
+  .rcp-hero-empty{ height:76px; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg,#F2C438,#E3A73B); }
+  .rcp-emoji{ font-size:34px; opacity:.85; }
+  .rcp-pill{ position:absolute; left:14px; top:14px; background:#F2C438; color:#2A2410; font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:.1em; padding:5px 12px; border-radius:999px; box-shadow:0 2px 6px rgba(0,0,0,.25); }
+  .rcp-hero-empty .rcp-pill{ background:#1B2321; color:#F2C438; }
+  .rcp-body{ padding:14px 18px 16px; }
+  .rcp-head{ display:flex; justify-content:space-between; align-items:baseline; gap:12px; margin-bottom:10px; }
+  .rcp-title{ margin:0; font-size:18px; line-height:1.25; color:#252A24; }
+  .rcp-time{ flex-shrink:0; font-size:12px; font-weight:700; color:#6E7568; background:#F6F2E8; padding:3px 10px; border-radius:999px; }
+  .rcp-cols{ display:flex; gap:22px; margin-top:14px; align-items:flex-start; }
+  .rcp-ing{ flex:0 0 38%; }
+  .rcp-steps{ flex:1; min-width:0; }
+  .rcp-cols h4{ margin:0 0 6px; font-size:11px; text-transform:uppercase; letter-spacing:.12em; color:#6E7568; padding-bottom:4px; border-bottom:1px solid #E4DDC8; }
+  .rcp-ing table{ width:100%; border-collapse:collapse; font-size:12px; }
+  .rcp-ing td{ padding:4px 0; border-bottom:1px dashed #E8E2D0; vertical-align:top; }
+  .rcp-ing td.q{ width:34%; font-weight:700; color:#252A24; white-space:nowrap; padding-right:8px; }
+  .rcp-steps ol{ list-style:none; margin:0; padding:0; }
+  .rcp-steps li{ display:flex; gap:9px; margin-bottom:7px; font-size:12px; line-height:1.45; }
+  .rcp-steps .n{ flex:0 0 20px; height:20px; border-radius:50%; background:#F2C438; color:#2A2410; font-weight:700; font-size:11px; display:flex; align-items:center; justify-content:center; margin-top:1px; }
+  .rcp-steps .t{ flex:1; }
   @media print{
-    .print-toolbar{ display:none !important; }
+    .print-toolbar, .close-hint{ display:none !important; }
     @page{ margin:14mm; }
   }
 </style>
@@ -3467,82 +3518,116 @@ function buildDocHeaderHtml(profile, subtitle){
     </div>`;
 }
 
+/* ---- Mise en page PDF des recettes : photo → macros → ingrédients (quantités) → préparation ---- */
+function pdfSplitQty(text){
+  const t = String(text || '').trim();
+  const m = t.match(/^(\d+\/\d+|\d+(?:[.,]\d+)?)\s*(kg|g|ml|cl|l|c\.\s?à\s?[sc]\.?|tranches?|doses?|pincées?|poignées?|gousses?|filets?)?\s+(.*)$/i);
+  if(!m) return {qty:'', name:t};
+  let name = m[3].replace(/^(?:de la |de l'|de |d'|du |des )/i, '').trim();
+  name = name.charAt(0).toUpperCase() + name.slice(1);
+  return {qty: (m[1] + (m[2] ? ' ' + m[2] : '')).trim(), name};
+}
+
+function pdfRecipeBlock(r){
+  const pk = r.p * 4, ck = r.c * 4, fk = r.f * 9, tot = Math.max(1, pk + ck + fk);
+  const wp = (pk / tot * 100).toFixed(1), wc = (ck / tot * 100).toFixed(1), wf = (fk / tot * 100).toFixed(1);
+  const hero = r.img
+    ? `<div class="rcp-hero"><img src="${r.img}" alt="${escapeHtml(r.title)}"><span class="rcp-pill">${escapeHtml(r.label)}</span></div>`
+    : `<div class="rcp-hero rcp-hero-empty"><span class="rcp-pill">${escapeHtml(r.label)}</span><span class="rcp-emoji">🍽️</span></div>`;
+  const ingRows = r.ing.map(i=>{
+    const q = pdfSplitQty(i);
+    return `<tr><td class="q">${q.qty ? escapeHtml(q.qty) : '•'}</td><td>${escapeHtml(q.name)}</td></tr>`;
+  }).join('');
+  const steps = r.steps.map((s, i)=> `<li><span class="n">${i + 1}</span><span class="t">${escapeHtml(s)}</span></li>`).join('');
+  return `
+  <div class="rcp">
+    ${hero}
+    <div class="rcp-body">
+      <div class="rcp-head">
+        <h3 class="rcp-title">${escapeHtml(r.title)}</h3>
+        <span class="rcp-time">⏱ ${r.prep} min</span>
+      </div>
+      <div class="macros">
+        <div class="mt mt-k"><b>${r.kcal}</b><span>kcal</span></div>
+        <div class="mt mt-p"><b>${r.p} g</b><span>Protéines</span></div>
+        <div class="mt mt-c"><b>${r.c} g</b><span>Glucides</span></div>
+        <div class="mt mt-f"><b>${r.f} g</b><span>Lipides</span></div>
+      </div>
+      <div class="mbar"><i style="width:${wp}%;background:#D9583F;"></i><i style="width:${wc}%;background:#E3A73B;"></i><i style="width:${wf}%;background:#4C8FB0;"></i></div>
+      <div class="rcp-cols">
+        <div class="rcp-ing">
+          <h4>Ingrédients</h4>
+          <table>${ingRows}</table>
+        </div>
+        <div class="rcp-steps">
+          <h4>Préparation</h4>
+          <ol>${steps}</ol>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
 function buildNutritionPrintableHTML(profile, plan, history){
   const objLabel = {perte:'Perte de poids', prise:'Prise de masse', recomposition:'Recomposition (léger déficit)', maintien:'Maintien'}[profile.objectif];
   const allergenListPdf = profile.allergenes || [];
   let totalRecipeProteinPdf = 0;
   const apPdf = getValidAiPlan(profile, plan);
-  const mealsHtmlPdf = getMeals(profile).map((m,i)=>{
+  const mealsHtmlPdf = getMeals(profile).map((m, i)=>{
     if(apPdf){
       const am = apPdf.meals[i];
       totalRecipeProteinPdf += am.p;
-      const imgAi = recipeImgCache.get(am.t);
-      return `
-      <div style="margin-bottom:14px; page-break-inside:avoid; break-inside:avoid; display:flex; gap:14px; align-items:flex-start;">
-        ${imgAi ? `<img src="${imgAi}" alt="${escapeHtml(am.t)}" style="width:190px; height:auto; aspect-ratio:3/2; object-fit:cover; border-radius:8px; flex-shrink:0;">` : ''}
-        <div style="flex:1; min-width:0;">
-          <p style="margin:0 0 2px;font-weight:700;font-size:13px;">${escapeHtml(m.label)} — ${escapeHtml(am.t)} <span style="font-weight:400;color:#666;">(~${am.kcal} kcal · P ${am.p} g / G ${am.c} g / L ${am.f} g · ${am.prep} min)</span></p>
-          <p style="margin:2px 0;font-size:12px;"><b>Ingrédients :</b> ${am.ing.map(escapeHtml).join(', ')}</p>
-          <p style="margin:2px 0;font-size:12px;"><b>Préparation :</b> ${am.steps.map(escapeHtml).join(' ')}</p>
-        </div>
-      </div>`;
+      return pdfRecipeBlock({label: m.label, title: am.t, prep: am.prep, kcal: am.kcal, p: am.p, c: am.c, f: am.f, ing: am.ing, steps: am.steps, img: recipeImgCache.get(am.t)});
     }
     const kcal = Math.round(plan.calTarget * m.pct);
     const recipe = pickRecipe(m.key, profile.objectif, recipeSeed + i, allergenListPdf);
-    if(!recipe) return `
-      <div style="margin-bottom:12px; page-break-inside:avoid; break-inside:avoid;">
-        <p style="margin:0 0 2px;font-weight:700;font-size:13px;">${m.label}</p>
-        <p style="margin:2px 0;font-size:12px;color:#7A3A28;">⚠️ Aucune recette de la base ne respecte tous les allergènes sélectionnés pour ce repas — à prévoir manuellement.</p>
-      </div>`;
+    if(!recipe) return `<div class="rcp rcp-missing"><b>${escapeHtml(m.label)}</b> — ⚠️ Aucune recette de la base ne respecte tous les allergènes sélectionnés pour ce repas : à prévoir manuellement.</div>`;
     const s = getScaledRecipe(recipe, kcal);
     totalRecipeProteinPdf += s.p;
-    const imgPdf = recipeImgCache.get(recipe.t);
-    return `
-      <div style="margin-bottom:14px; page-break-inside:avoid; break-inside:avoid; display:flex; gap:14px; align-items:flex-start;">
-        ${imgPdf ? `<img src="${imgPdf}" alt="${escapeHtml(recipe.t)}" style="width:190px; height:auto; aspect-ratio:3/2; object-fit:cover; border-radius:8px; flex-shrink:0;">` : ''}
-        <div style="flex:1; min-width:0;">
-          <p style="margin:0 0 2px;font-weight:700;font-size:13px;">${m.label} — ${escapeHtml(recipe.t)} <span style="font-weight:400;color:#666;">(~${s.kcal} kcal · cible ${kcal} kcal · P ${s.p} g / G ${s.c} g / L ${s.f} g · ${recipe.prep} min)</span></p>
-          <p style="margin:2px 0;font-size:12px;"><b>Ingrédients (portion ajustée) :</b> ${s.ing.map(escapeHtml).join(', ')}</p>
-          <p style="margin:2px 0;font-size:12px;"><b>Préparation :</b> ${recipe.steps.map(escapeHtml).join(' ')}</p>
-        </div>
-      </div>`;
+    return pdfRecipeBlock({label: m.label, title: recipe.t, prep: recipe.prep, kcal: s.kcal, p: s.p, c: s.c, f: s.f, ing: s.ing, steps: recipe.steps, img: recipeImgCache.get(recipe.t)});
   }).join('');
+
   const proteinRatioPdf = plan.proteinG > 0 ? totalRecipeProteinPdf / plan.proteinG : 1;
-  const coherenceHtmlPdf = `<p style="margin:6px 0 0;font-size:11.5px;color:${proteinRatioPdf >= 0.85 ? '#33513E' : '#7A3A28'};">${proteinRatioPdf >= 0.85 ? '✅' : '⚠️'} Ces recettes couvrent environ ${totalRecipeProteinPdf} g de protéines sur les ${plan.proteinG} g visés par jour.</p>`;
+  const coherenceHtmlPdf = `<div class="note ${proteinRatioPdf >= 0.85 ? 'note-ok' : 'note-warn'}">${proteinRatioPdf >= 0.85 ? '✅' : '⚠️'} Ces recettes couvrent environ <b>${totalRecipeProteinPdf} g</b> de protéines sur les <b>${plan.proteinG} g</b> visés par jour.</div>`;
   const allergenNoteHtmlPdf = allergenListPdf.length
-    ? `<p style="font-size:12px;color:#7A3A28;margin:0 0 8px;">🚫 Allergènes évités : ${allergenListPdf.map(a=> escapeHtml(a.label) + (a.custom ? ' (ajout manuel)' : '')).join(', ')}</p>`
+    ? `<div class="note note-warn">🚫 Allergènes évités : ${allergenListPdf.map(a=> escapeHtml(a.label) + (a.custom ? ' (ajout manuel)' : '')).join(', ')}</div>`
     : '';
 
   let historyHtml = '';
   if(history && history.length){
     const rows = [...history].sort((a,b)=> new Date(a.date)-new Date(b.date)).map(e=> `<tr><td>${formatDate(e.date)}</td><td>${e.poids} kg</td></tr>`).join('');
-    historyHtml = `<h2 style="margin-top:24px;">Suivi du poids</h2>
-      <table style="width:100%;border-collapse:collapse;font-size:12px;">
-        <thead><tr style="background:#eee;"><th style="text-align:left;padding:4px;">Date</th><th style="text-align:left;padding:4px;">Poids</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>`;
+    historyHtml = `<div class="no-break"><h2 class="sec">Suivi du poids</h2>
+      <table class="hist"><thead><tr><th>Date</th><th>Poids</th></tr></thead><tbody>${rows}</tbody></table></div>`;
   }
+
+  const kp = plan.proteinG * 4, kc = plan.carbsG * 4, kf = plan.fatG * 9, kt = Math.max(1, kp + kc + kf);
+  const summary = `
+    <div class="day no-break">
+      <div class="day-top">
+        <div class="day-kcal"><b>${plan.calTarget}</b><span>kcal / jour</span></div>
+        <div class="day-meta">
+          <div>Métabolisme de base <b>${plan.bmr} kcal</b></div>
+          <div>Dépense totale (TDEE) <b>${plan.tdee} kcal</b></div>
+          <div>${getMeals(profile).length} repas · ${objLabel}</div>
+          ${plan.isManual ? '<div style="color:#7A3A28;">✏️ Macros personnalisées</div>' : ''}
+        </div>
+      </div>
+      <div class="macros">
+        <div class="mt mt-p"><b>${plan.proteinG} g</b><span>Protéines · ${plan.proteinPct} %</span></div>
+        <div class="mt mt-c"><b>${plan.carbsG} g</b><span>Glucides · ${plan.carbsPct} %</span></div>
+        <div class="mt mt-f"><b>${plan.fatG} g</b><span>Lipides · ${plan.fatPct} %</span></div>
+      </div>
+      <div class="mbar"><i style="width:${(kp/kt*100).toFixed(1)}%;background:#D9583F;"></i><i style="width:${(kc/kt*100).toFixed(1)}%;background:#E3A73B;"></i><i style="width:${(kf/kt*100).toFixed(1)}%;background:#4C8FB0;"></i></div>
+    </div>`;
 
   return buildDocHeaderHtml(profile, `Plan nutrition · Objectif : ${objLabel}`) + `
     <div style="padding:0 28px 32px;">
-      <h2 style="margin-top:0;">Bilan métabolique</h2>
-      ${plan.isManual ? `<p style="font-size:12px;color:#7A3A28;margin:0 0 8px;">✏️ Macros personnalisées par l'utilisateur (kcal recalculées en conséquence).</p>` : ''}
-      <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:18px;">
-        <tr><td style="padding:4px;font-weight:700;">Métabolisme de base</td><td style="padding:4px;">${plan.bmr} kcal</td></tr>
-        <tr><td style="padding:4px;font-weight:700;">Dépense totale (TDEE)</td><td style="padding:4px;">${plan.tdee} kcal</td></tr>
-        <tr><td style="padding:4px;font-weight:700;">Objectif calorique quotidien</td><td style="padding:4px;">${plan.calTarget} kcal</td></tr>
-        <tr><td style="padding:4px;font-weight:700;">Protéines</td><td style="padding:4px;">${plan.proteinG} g (${plan.proteinPct}%)</td></tr>
-        <tr><td style="padding:4px;font-weight:700;">Glucides</td><td style="padding:4px;">${plan.carbsG} g (${plan.carbsPct}%)</td></tr>
-        <tr><td style="padding:4px;font-weight:700;">Lipides</td><td style="padding:4px;">${plan.fatG} g (${plan.fatPct}%)</td></tr>
-      </table>
-
-      <h2>Recettes du jour</h2>
+      ${summary}
+      <h2 class="sec">Tes repas du jour</h2>
       ${allergenNoteHtmlPdf}
       ${mealsHtmlPdf}
       ${coherenceHtmlPdf}
-
       ${historyHtml}
-
       <p style="margin-top:26px;font-size:11px;color:#999;">Document généré par Form &amp; Fuel — à titre indicatif, ne remplace pas l'avis d'un professionnel de santé ou d'un coach diplômé.</p>
     </div>`;
 }
