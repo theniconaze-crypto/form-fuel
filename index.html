@@ -318,6 +318,20 @@ tailwind.config = {
 .recipe-body ul, .recipe-body ol{margin:0; padding-left:18px; font-size:12.5px; line-height:1.6; color:var(--ink);}
 .recipe-adjust{margin:9px 0 0; font-size:11.5px; color:var(--ink-dim); font-style:italic; line-height:1.5;}
 
+/* ---------- images de recettes (Pollinations.ai) ---------- */
+.recipe-img{position:relative; margin:-2px -2px 10px; border-radius:8px; overflow:hidden; background:var(--paper-alt); border:1px dashed #D9D2BC; min-height:64px; display:flex; align-items:center; justify-content:center; text-align:center;}
+.recipe-img img{display:block; width:100%; height:auto; aspect-ratio:3/2; object-fit:cover;}
+.recipe-img-hint{font-size:11.5px; color:var(--ink-dim); font-style:italic; padding:14px 10px; line-height:1.4;}
+.recipe-img-loading{font-size:12px; color:var(--ink-dim); padding:22px 10px; font-weight:600;}
+.recipe-img-regen{
+  position:absolute; right:6px; bottom:6px; width:32px; height:32px; min-height:32px; padding:0;
+  border:0; border-radius:50%; background:rgba(20,27,25,0.72); color:#fff; font-size:14px;
+  display:flex; align-items:center; justify-content:center;
+}
+.recipe-img-regen:hover{background:rgba(20,27,25,0.9);}
+.recipe-img.has-img{border-style:solid; border-color:#DED6BE; min-height:0;}
+.img-status{margin:8px 0 0; font-size:12px; font-weight:600; color:var(--ink-dim);}
+
 /* ---------- training ---------- */
 .split-overview{display:flex; gap:18px; flex-wrap:wrap; align-items:center; margin-top:6px;}
 .split-badge{
@@ -1108,6 +1122,180 @@ function getScaledRecipe(recipe, targetKcal){
   };
 }
 
+/* =========================================================================
+   IMAGES DE RECETTES — Pollinations.ai (gen.pollinations.ai)
+   - La clé API n'est JAMAIS écrite dans le fichier : elle est saisie dans l'app
+     et stockée uniquement dans le navigateur de l'appareil (localStorage).
+   - Les images sont téléchargées avec un en-tête Authorization (la clé ne
+     apparaît donc pas dans une URL), réduites en JPEG, puis gardées en data-URL :
+     c'est ce qui permet de les intégrer directement dans l'export PDF.
+========================================================================= */
+const POLL_KEY_STORE = 'formfuel_pollinations_key';
+const POLL_ENDPOINT = 'https://gen.pollinations.ai/image/';
+const POLL_MODEL = 'flux';
+const recipeImgCache = new Map();   // titre de recette -> data-URL JPEG
+let recipeImgBusy = false;
+
+function getPollKey(){ try{ return localStorage.getItem(POLL_KEY_STORE) || ''; }catch(e){ return ''; } }
+function setPollKey(k){
+  try{ if(k) localStorage.setItem(POLL_KEY_STORE, k); else localStorage.removeItem(POLL_KEY_STORE); return true; }
+  catch(e){ return false; }
+}
+function recipeSlug(t){
+  return normalizeAllergenText(t).replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 70);
+}
+function hashStr(s){ let h = 0; for(let i=0; i<s.length; i++){ h = (h*31 + s.charCodeAt(i)) >>> 0; } return h % 100000; }
+function findRecipeByTitle(title){
+  for(const k of Object.keys(RECIPES)){
+    const r = RECIPES[k].find(x=> x.t === title);
+    if(r) return r;
+  }
+  return null;
+}
+function recipeImagePrompt(r){
+  return `Professional food photography of ${r.t}, a single plated serving ready to eat, ceramic plate on a light wooden table, top-down 3/4 view, soft natural daylight, appetizing, realistic, no text, no watermark, no people`;
+}
+async function blobToJpegDataUrl(blob, maxW){
+  const bmp = await createImageBitmap(blob);
+  const ratio = Math.min(1, maxW / bmp.width);
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(bmp.width * ratio);
+  canvas.height = Math.round(bmp.height * ratio);
+  canvas.getContext('2d').drawImage(bmp, 0, 0, canvas.width, canvas.height);
+  if(bmp.close) bmp.close();
+  return canvas.toDataURL('image/jpeg', 0.82);
+}
+async function fetchRecipeImage(recipe){
+  const key = getPollKey();
+  if(!key) throw new Error('Aucune clé API enregistrée.');
+  const url = POLL_ENDPOINT + encodeURIComponent(recipeImagePrompt(recipe))
+    + `?model=${POLL_MODEL}&width=768&height=512&seed=${hashStr(recipe.t)}&nologo=true`;
+  const res = await fetch(url, {headers:{Authorization:'Bearer ' + key}});
+  if(!res.ok){
+    let detail = '';
+    try{ const j = await res.json(); detail = (j.error && (j.error.message || j.error.code)) || ''; }catch(e){}
+    if(res.status === 401 || res.status === 403) throw new Error('Clé refusée (' + res.status + ')' + (detail ? ' — ' + detail : ''));
+    if(res.status === 402) throw new Error('Crédits Pollen insuffisants.');
+    if(res.status === 429) throw new Error('Trop de requêtes, réessaie dans un instant.');
+    throw new Error('Erreur ' + res.status + (detail ? ' — ' + detail : ''));
+  }
+  const blob = await res.blob();
+  const dataUrl = await blobToJpegDataUrl(blob, 640);
+  recipeImgCache.set(recipe.t, dataUrl);
+  await storageSet('recimg:' + recipeSlug(recipe.t), dataUrl, false);
+  return dataUrl;
+}
+
+function paintRecipeSlot(slot, url, state){
+  const t = slot.dataset.recipe;
+  slot.classList.toggle('has-img', !!url);
+  if(state === 'loading'){
+    slot.innerHTML = '<span class="recipe-img-loading">🎨 Génération en cours…</span>';
+  } else if(url){
+    slot.innerHTML = `<img src="${url}" alt="${escapeHtml(t)}"><button type="button" class="recipe-img-regen" data-act="regen" title="Régénérer cette image" aria-label="Régénérer l'image">🔄</button>`;
+  } else if(getPollKey()){
+    slot.innerHTML = '<button type="button" class="btn btn-ghost btn-sm" data-act="gen" style="border-color:#D9D2BC; color:var(--ink);">🎨 Générer l\'image</button>';
+  } else {
+    slot.innerHTML = '<span class="recipe-img-hint">Ajoute ta clé Pollinations (section ci-dessous) pour illustrer cette recette.</span>';
+  }
+}
+
+async function generateForSlot(slot, force){
+  const title = slot.dataset.recipe;
+  const recipe = findRecipeByTitle(title);
+  if(!recipe) return false;
+  if(!force && recipeImgCache.has(title)) return true;
+  paintRecipeSlot(slot, null, 'loading');
+  try{
+    const url = await fetchRecipeImage(recipe);
+    paintRecipeSlot(slot, url);
+    return true;
+  }catch(err){
+    console.error('Pollinations :', err);
+    paintRecipeSlot(slot, recipeImgCache.get(title) || null);
+    setImgStatus('⚠️ ' + (err.message || 'Échec de génération'));
+    return false;
+  }
+}
+
+function setImgStatus(msg){
+  const el = document.getElementById('imgStatus');
+  if(el) el.textContent = msg || '';
+}
+
+async function hydrateRecipeImages(){
+  const slots = Array.from(document.querySelectorAll('.recipe-img[data-recipe]'));
+  for(const slot of slots){
+    const t = slot.dataset.recipe;
+    let url = recipeImgCache.get(t);
+    if(!url){
+      const v = await storageGet('recimg:' + recipeSlug(t), false);
+      if(v){ recipeImgCache.set(t, v); url = v; }
+    }
+    if(slot.isConnected) paintRecipeSlot(slot, url);
+  }
+}
+
+async function generateAllRecipeImages(){
+  if(recipeImgBusy) return;
+  if(!getPollKey()){ showToast('Enregistre d\'abord ta clé Pollinations.'); return; }
+  const slots = Array.from(document.querySelectorAll('.recipe-img[data-recipe]')).filter(s=> !recipeImgCache.has(s.dataset.recipe));
+  if(!slots.length){ showToast('Toutes les images sont déjà générées ✅'); return; }
+  recipeImgBusy = true;
+  let done = 0, failed = 0;
+  for(const slot of slots){
+    setImgStatus(`Génération ${done + failed + 1} / ${slots.length}…`);
+    const ok = await generateForSlot(slot, false);
+    if(ok) done++; else { failed++; if(failed >= 2) break; }  // on s'arrête si ça échoue (clé / crédits)
+  }
+  recipeImgBusy = false;
+  if(!failed) setImgStatus('');
+  showToast(failed ? `${done} image(s) générée(s), ${failed} échec(s) ⚠️` : `${done} image(s) générée(s) 🎨`);
+}
+
+function bindImageSettings(){
+  const input = document.getElementById('pollKeyInput');
+  const saveBtn = document.getElementById('pollKeySave');
+  const clearBtn = document.getElementById('pollKeyClear');
+  const genAll = document.getElementById('genAllImgBtn');
+  if(saveBtn && input){
+    saveBtn.addEventListener('click', ()=>{
+      const k = input.value.trim();
+      if(!k){ showToast('Colle ta clé API dans le champ.'); return; }
+      if(!/^(sk|pk)_/.test(k)){ showToast('Une clé Pollinations commence par sk_ ou pk_.'); return; }
+      setPollKey(k);
+      input.value = '';
+      input.placeholder = 'Clé enregistrée (…' + k.slice(-4) + ')';
+      setImgStatus('');
+      document.querySelectorAll('.recipe-img[data-recipe]').forEach(s=> paintRecipeSlot(s, recipeImgCache.get(s.dataset.recipe) || null));
+      showToast('Clé enregistrée sur cet appareil 🔑');
+    });
+  }
+  if(clearBtn){
+    clearBtn.addEventListener('click', ()=>{
+      setPollKey('');
+      if(input) input.placeholder = 'sk_… ou pk_…';
+      document.querySelectorAll('.recipe-img[data-recipe]').forEach(s=> paintRecipeSlot(s, recipeImgCache.get(s.dataset.recipe) || null));
+      showToast('Clé supprimée de cet appareil');
+    });
+  }
+  if(genAll) genAll.addEventListener('click', generateAllRecipeImages);
+  const grid = document.querySelector('#nutritionContent .meal-grid');
+  if(grid){
+    grid.addEventListener('click', async (e)=>{
+      const btn = e.target.closest('[data-act]');
+      if(!btn) return;
+      const slot = btn.closest('.recipe-img');
+      if(!slot || recipeImgBusy) return;
+      recipeImgBusy = true;
+      setImgStatus('');
+      await generateForSlot(slot, btn.dataset.act === 'regen');
+      recipeImgBusy = false;
+    });
+  }
+  hydrateRecipeImages();
+}
+
 function recipeCardHtml(recipe, targetKcal, targetProtein){
   if(!recipe) return '';
   const s = getScaledRecipe(recipe, targetKcal);
@@ -1132,6 +1320,7 @@ function recipeCardHtml(recipe, targetKcal, targetProtein){
 
   return `
     <div class="recipe-card">
+      <div class="recipe-img" data-recipe="${escapeHtml(recipe.t)}"></div>
       <div class="recipe-head">
         <span class="recipe-title">🍽️ ${escapeHtml(recipe.t)}</span>
         <span class="recipe-meta">~${s.kcal} kcal (cible ${targetKcal} kcal) · ${recipe.prep} min</span>
@@ -1234,9 +1423,23 @@ function renderNutrition(profile, plan){
         </div>
       </div>
 
+      <div class="macro-editor" id="imgSettings">
+        <h3 class="meal-grid-title" style="margin-bottom:2px;">Images des recettes (Pollinations.ai)</h3>
+        <p class="sub" style="margin-top:2px;">Colle ta clé API Pollinations : elle reste uniquement dans ce navigateur (jamais dans le fichier ni dans l'export). Les images générées sont conservées et intégrées à l'export PDF.</p>
+        <div class="field"><label for="pollKeyInput">Clé API</label><input type="password" id="pollKeyInput" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${getPollKey() ? 'Clé enregistrée (…' + escapeHtml(getPollKey().slice(-4)) + ')' : 'sk_… ou pk_…'}"></div>
+        <div class="macro-editor-actions">
+          <button type="button" class="btn btn-accent" id="pollKeySave">Enregistrer la clé</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="pollKeyClear" style="border-color:#D9D2BC; color:var(--ink);">Supprimer la clé</button>
+        </div>
+        <p class="img-status" id="imgStatus"></p>
+      </div>
+
       <div class="meal-grid-head">
         <h3 class="meal-grid-title">Recettes du jour</h3>
-        <button type="button" class="btn btn-ghost btn-sm" id="shuffleRecipesBtn" style="border-color:#D9D2BC; color:var(--ink);">🔄 Nouvelles suggestions</button>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button type="button" class="btn btn-ghost btn-sm" id="genAllImgBtn" style="border-color:#D9D2BC; color:var(--ink);">🎨 Générer les images</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="shuffleRecipesBtn" style="border-color:#D9D2BC; color:var(--ink);">🔄 Nouvelles suggestions</button>
+        </div>
       </div>
       <div class="meal-grid">${mealsHtml}</div>
       ${coherenceHtml}
@@ -1251,6 +1454,8 @@ function renderNutrition(profile, plan){
       renderNutrition(profile, plan);
     });
   }
+
+  bindImageSettings();
 
   // ---- éditeur de macros manuel ----
   const mProtein = document.getElementById('macro_protein');
@@ -2985,11 +3190,15 @@ function buildNutritionPrintableHTML(profile, plan, history){
       </div>`;
     const s = getScaledRecipe(recipe, kcal);
     totalRecipeProteinPdf += s.p;
+    const imgPdf = recipeImgCache.get(recipe.t);
     return `
-      <div style="margin-bottom:12px; page-break-inside:avoid; break-inside:avoid;">
-        <p style="margin:0 0 2px;font-weight:700;font-size:13px;">${m.label} — ${escapeHtml(recipe.t)} <span style="font-weight:400;color:#666;">(~${s.kcal} kcal · cible ${kcal} kcal · P ${s.p} g / G ${s.c} g / L ${s.f} g · ${recipe.prep} min)</span></p>
-        <p style="margin:2px 0;font-size:12px;"><b>Ingrédients (portion ajustée) :</b> ${s.ing.map(escapeHtml).join(', ')}</p>
-        <p style="margin:2px 0;font-size:12px;"><b>Préparation :</b> ${recipe.steps.map(escapeHtml).join(' ')}</p>
+      <div style="margin-bottom:14px; page-break-inside:avoid; break-inside:avoid; display:flex; gap:14px; align-items:flex-start;">
+        ${imgPdf ? `<img src="${imgPdf}" alt="${escapeHtml(recipe.t)}" style="width:190px; height:auto; aspect-ratio:3/2; object-fit:cover; border-radius:8px; flex-shrink:0;">` : ''}
+        <div style="flex:1; min-width:0;">
+          <p style="margin:0 0 2px;font-weight:700;font-size:13px;">${m.label} — ${escapeHtml(recipe.t)} <span style="font-weight:400;color:#666;">(~${s.kcal} kcal · cible ${kcal} kcal · P ${s.p} g / G ${s.c} g / L ${s.f} g · ${recipe.prep} min)</span></p>
+          <p style="margin:2px 0;font-size:12px;"><b>Ingrédients (portion ajustée) :</b> ${s.ing.map(escapeHtml).join(', ')}</p>
+          <p style="margin:2px 0;font-size:12px;"><b>Préparation :</b> ${recipe.steps.map(escapeHtml).join(' ')}</p>
+        </div>
       </div>`;
   }).join('');
   const proteinRatioPdf = plan.proteinG > 0 ? totalRecipeProteinPdf / plan.proteinG : 1;
