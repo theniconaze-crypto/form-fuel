@@ -957,6 +957,20 @@ const MEALS = [
   {key:'diner', label:'Dîner', pct:0.30}
 ];
 
+/* Découpage de la journée selon le nombre de repas choisi (2 à 6).
+   `key` sert à piocher dans la base de recettes de secours (hors IA). */
+const MEAL_LAYOUTS = {
+  2: [{key:'dejeuner', label:'Repas 1 (midi)', pct:0.50}, {key:'diner', label:'Repas 2 (soir)', pct:0.50}],
+  3: [{key:'petitdej', label:'Petit-déjeuner', pct:0.30}, {key:'dejeuner', label:'Déjeuner', pct:0.40}, {key:'diner', label:'Dîner', pct:0.30}],
+  4: MEALS,
+  5: [{key:'petitdej', label:'Petit-déjeuner', pct:0.22}, {key:'collation', label:'Collation du matin', pct:0.08}, {key:'dejeuner', label:'Déjeuner', pct:0.32}, {key:'collation', label:'Collation de l\'après-midi', pct:0.10}, {key:'diner', label:'Dîner', pct:0.28}],
+  6: [{key:'petitdej', label:'Petit-déjeuner', pct:0.20}, {key:'collation', label:'Collation du matin', pct:0.08}, {key:'dejeuner', label:'Déjeuner', pct:0.28}, {key:'collation', label:'Collation de l\'après-midi', pct:0.10}, {key:'diner', label:'Dîner', pct:0.26}, {key:'collation', label:'Collation du soir', pct:0.08}]
+};
+function getMeals(profile){
+  const n = profile && MEAL_LAYOUTS[profile.nbRepas] ? profile.nbRepas : 4;
+  return MEAL_LAYOUTS[n];
+}
+
 function pick(arr, seed){ return arr[seed % arr.length]; }
 
 /* ---- ALLERGÈNES : 14 allergènes réglementaires + gestion des ajouts manuels ---- */
@@ -1146,6 +1160,8 @@ function recipeSlug(t){
 }
 function hashStr(s){ let h = 0; for(let i=0; i<s.length; i++){ h = (h*31 + s.charCodeAt(i)) >>> 0; } return h % 100000; }
 function findRecipeByTitle(title){
+  const ai = state.profile && state.profile.aiPlan && state.profile.aiPlan.meals;
+  if(ai){ const m = ai.find(x=> x.t === title); if(m) return m; }
   for(const k of Object.keys(RECIPES)){
     const r = RECIPES[k].find(x=> x.t === title);
     if(r) return r;
@@ -1153,7 +1169,8 @@ function findRecipeByTitle(title){
   return null;
 }
 function recipeImagePrompt(r){
-  return `Professional food photography of ${r.t}, a single plated serving ready to eat, ceramic plate on a light wooden table, top-down 3/4 view, soft natural daylight, appetizing, realistic, no text, no watermark, no people`;
+  const names = (r.ing || []).slice(0, 5).map(i=> String(i).replace(/^[\d.,\/\s]+(g|kg|ml|cl|l|c\.\s?à\s?[sc]\.?|tranches?|doses?|pincée)?\s*(de |d'|du |des )?/i, '').replace(/\(.*?\)/g, '').trim()).filter(Boolean);
+  return `Professional food photography of ${r.t}${names.length ? ', made with ' + names.join(', ') : ''}, a single plated serving ready to eat, ceramic plate on a light wooden table, top-down 3/4 view, soft natural daylight, appetizing, realistic, no text, no watermark, no people`;
 }
 async function blobToJpegDataUrl(blob, maxW){
   const bmp = await createImageBitmap(blob);
@@ -1205,13 +1222,16 @@ async function generateForSlot(slot, force){
   const recipe = findRecipeByTitle(title);
   if(!recipe) return false;
   if(!force && recipeImgCache.has(title)) return true;
+  slot.dataset.busy = '1';
   paintRecipeSlot(slot, null, 'loading');
   try{
     const url = await fetchRecipeImage(recipe);
+    delete slot.dataset.busy;
     paintRecipeSlot(slot, url);
     return true;
   }catch(err){
     console.error('Pollinations :', err);
+    delete slot.dataset.busy;
     paintRecipeSlot(slot, recipeImgCache.get(title) || null);
     setImgStatus('⚠️ ' + (err.message || 'Échec de génération'));
     return false;
@@ -1232,7 +1252,8 @@ async function hydrateRecipeImages(){
       const v = await storageGet('recimg:' + recipeSlug(t), false);
       if(v){ recipeImgCache.set(t, v); url = v; }
     }
-    if(slot.isConnected) paintRecipeSlot(slot, url);
+    url = recipeImgCache.get(t) || url;
+    if(slot.isConnected && !slot.dataset.busy) paintRecipeSlot(slot, url);
   }
 }
 
@@ -1296,6 +1317,245 @@ function bindImageSettings(){
   hydrateRecipeImages();
 }
 
+/* =========================================================================
+   RECETTES GÉNÉRÉES PAR IA — Pollinations (texte) + photos (images)
+   Une seule requête compose TOUTE la journée : l'IA reçoit les macros cibles
+   de chaque repas, l'objectif, les allergènes et le nombre de repas. On
+   recalcule ensuite les kcal à partir des macros et on met chaque repas à
+   l'échelle (quantités des ingrédients comprises) pour tomber pile sur la cible.
+   Si les totaux du jour s'écartent encore de > 10 %, on redemande une fois
+   à l'IA en lui indiquant l'écart constaté.
+========================================================================= */
+const POLL_CHAT = 'https://gen.pollinations.ai/v1/chat/completions';
+const POLL_TEXT_MODEL = 'openai';
+let aiPlanBusy = false;
+
+function aiPlanSignature(profile, plan){
+  const al = (profile.allergenes || []).map(a=> a.id).sort().join(',');
+  return [plan.calTarget, plan.proteinG, plan.carbsG, plan.fatG, getMeals(profile).length, profile.objectif, al].join('|');
+}
+function getValidAiPlan(profile, plan){
+  const ap = profile && profile.aiPlan;
+  return (ap && ap.sig === aiPlanSignature(profile, plan) && Array.isArray(ap.meals) && ap.meals.length === getMeals(profile).length) ? ap : null;
+}
+function toNum(v){ const n = parseFloat(String(v).replace(',', '.')); return Number.isFinite(n) ? n : NaN; }
+
+async function pollHttpError(res){
+  let detail = '';
+  try{ const j = await res.json(); detail = (j.error && (j.error.message || j.error.code)) || ''; }catch(e){}
+  if(res.status === 401 || res.status === 403) return new Error('Clé refusée (' + res.status + ')' + (detail ? ' — ' + detail : ''));
+  if(res.status === 402) return new Error('Crédits Pollen insuffisants.');
+  if(res.status === 429) return new Error('Trop de requêtes, réessaie dans un instant.');
+  return new Error('Erreur ' + res.status + (detail ? ' — ' + detail : ''));
+}
+
+function parseJsonLoose(txt){
+  let t = String(txt || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+  const a = t.indexOf('{'), b = t.lastIndexOf('}');
+  if(a < 0 || b <= a) throw new Error('Réponse IA illisible.');
+  return JSON.parse(t.slice(a, b + 1));
+}
+
+async function callPollJson(messages){
+  const key = getPollKey();
+  if(!key) throw new Error('Aucune clé API enregistrée.');
+  const doCall = async (withFormat)=>{
+    const ctrl = new AbortController();
+    const to = setTimeout(()=> ctrl.abort(), 90000);
+    try{
+      const body = {model: POLL_TEXT_MODEL, messages, temperature: 0.7};
+      if(withFormat) body.response_format = {type: 'json_object'};
+      return await fetch(POLL_CHAT, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', Authorization: 'Bearer ' + key},
+        body: JSON.stringify(body), signal: ctrl.signal
+      });
+    } finally { clearTimeout(to); }
+  };
+  let res;
+  try{
+    res = await doCall(true);
+    if(res.status === 400) res = await doCall(false);
+  }catch(e){
+    if(e && e.name === 'AbortError') throw new Error('Délai dépassé (l\'IA met trop de temps à répondre).');
+    throw e;
+  }
+  if(!res.ok) throw await pollHttpError(res);
+  const j = await res.json();
+  const txt = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
+  return parseJsonLoose(txt);
+}
+
+function aiMealTargets(profile, plan){
+  return getMeals(profile).map(m=>{
+    const p = Math.round(plan.proteinG * m.pct), c = Math.round(plan.carbsG * m.pct), f = Math.round(plan.fatG * m.pct);
+    return {label:m.label, kcal: Math.round(p*4 + c*4 + f*9), p, c, f};
+  });
+}
+
+function buildAiMessages(profile, plan, feedback){
+  const objLabel = {perte:'perte de poids (déficit calorique)', prise:'prise de masse (surplus calorique)', recomposition:'recomposition corporelle (léger déficit)', maintien:'maintien du poids'}[profile.objectif];
+  const targets = aiMealTargets(profile, plan);
+  const allerg = (profile.allergenes || []).map(a=> a.label);
+  const sys = "Tu es un diététicien-nutritionniste sportif français. Tu composes des recettes réalistes, savoureuses et simples, avec des quantités précises et des macronutriments cohérents avec les ingrédients. Tu réponds UNIQUEMENT par un objet JSON valide, sans texte autour.";
+  const user = [
+    `Compose les repas d'UNE journée pour un pratiquant de musculation. Objectif : ${objLabel}.`,
+    `Cibles de la journée : ${plan.calTarget} kcal, ${plan.proteinG} g de protéines, ${plan.carbsG} g de glucides, ${plan.fatG} g de lipides.`,
+    `Répartition imposée (${targets.length} repas, dans cet ordre) :`,
+    targets.map((t,i)=> `${i+1}. ${t.label} : ~${t.kcal} kcal, ${t.p} g protéines, ${t.c} g glucides, ${t.f} g lipides`).join('\n'),
+    allerg.length ? `ALLERGÈNES À EXCLURE STRICTEMENT (aucun ingrédient, dérivé ou sauce en contenant) : ${allerg.join(', ')}.` : 'Aucun allergène à exclure.',
+    "Règles : recettes de cuisine française/méditerranéenne courante, ingrédients de supermarché, 3 à 6 étapes courtes par recette, temps de préparation réaliste. Varie les sources de protéines entre les repas. Petit-déjeuner et collations adaptés (pas de plat de dîner au petit-déjeuner). Chaque ingrédient commence par une quantité chiffrée avec unité (ex : \"150 g de blanc de poulet\", \"2 œufs\", \"1 c. à s. d'huile d'olive\"), poids crus. Les macros d'un repas doivent correspondre à la somme réaliste de ses ingrédients et rester proches de la cible du repas.",
+    feedback ? `CORRECTION À APPORTER : ${feedback}` : '',
+    'Format JSON exact : {"repas":[{"label":"<libellé du repas>","titre":"<nom de la recette>","prep_min":<entier>,"kcal":<nombre>,"proteines_g":<nombre>,"glucides_g":<nombre>,"lipides_g":<nombre>,"ingredients":["..."],"etapes":["..."]}]} avec exactement ' + targets.length + ' éléments dans "repas", dans l\'ordre ci-dessus.'
+  ].filter(Boolean).join('\n\n');
+  return [{role:'system', content: sys}, {role:'user', content: user}];
+}
+
+function normalizeAiMeals(raw, profile, plan){
+  const meals = getMeals(profile);
+  const list = raw && (raw.repas || raw.meals);
+  if(!Array.isArray(list) || list.length < meals.length) throw new Error('Réponse IA incomplète.');
+  const used = new Set();
+  return meals.map((m, i)=>{
+    const r = list[i] || {};
+    const p = toNum(r.proteines_g), c = toNum(r.glucides_g), f = toNum(r.lipides_g);
+    if(![p, c, f].every(Number.isFinite) || !(p*4 + c*4 + f*9 > 0) || !Array.isArray(r.ingredients) || !r.ingredients.length || !Array.isArray(r.etapes) || !r.titre){
+      throw new Error('Réponse IA invalide (repas ' + (i + 1) + ').');
+    }
+    const targetKcal = Math.round(plan.proteinG*m.pct*4 + plan.carbsG*m.pct*4 + plan.fatG*m.pct*9);
+    const kc = p*4 + c*4 + f*9;
+    const factor = Math.min(1.8, Math.max(0.5, targetKcal / kc));
+    let title = String(r.titre).trim().slice(0, 90);
+    while(used.has(title)) title += ' (bis)';
+    used.add(title);
+    return {
+      label: m.label, key: m.key, pct: m.pct, t: title,
+      prep: Math.round(toNum(r.prep_min)) || 15, targetKcal, factor,
+      kcal: Math.round(kc * factor), p: Math.round(p * factor), c: Math.round(c * factor), f: Math.round(f * factor),
+      ing: r.ingredients.map(x=> scaleIngredientText(String(x), factor)),
+      steps: r.etapes.map(String)
+    };
+  });
+}
+
+function sumAiMeals(list){
+  return list.reduce((a, m)=> ({p: a.p + m.p, c: a.c + m.c, f: a.f + m.f, kcal: a.kcal + m.kcal}), {p:0, c:0, f:0, kcal:0});
+}
+function aiMaxDeviation(tot, plan){
+  const d = (a, b)=> b > 0 ? Math.abs(a - b) / b : 0;
+  return Math.max(d(tot.p, plan.proteinG), d(tot.c, plan.carbsG), d(tot.f, plan.fatG));
+}
+
+async function generateAiPlan(profile, plan){
+  let feedback = '', best = null;
+  for(let attempt = 0; attempt < 2; attempt++){
+    setImgStatus(attempt ? '✨ Ajustement des recettes pour coller aux macros…' : '✨ L\'IA compose tes recettes…');
+    const raw = await callPollJson(buildAiMessages(profile, plan, feedback));
+    const meals = normalizeAiMeals(raw, profile, plan);
+    const tot = sumAiMeals(meals);
+    best = {meals, tot};
+    if(aiMaxDeviation(tot, plan) <= 0.10) break;
+    feedback = `Ta proposition précédente totalisait ${tot.p} g de protéines, ${tot.c} g de glucides et ${tot.f} g de lipides, alors que les cibles sont ${plan.proteinG} g, ${plan.carbsG} g et ${plan.fatG} g. Ajuste les ingrédients et leurs quantités pour t'en rapprocher.`;
+  }
+  return best;
+}
+
+async function purgeAiPlanImages(ap){
+  if(!ap || !Array.isArray(ap.meals)) return;
+  for(const m of ap.meals){
+    recipeImgCache.delete(m.t);
+    await storageDelete('recimg:' + recipeSlug(m.t), false);
+  }
+}
+
+async function runAiSuggestions(profile, plan){
+  if(aiPlanBusy) return;
+  aiPlanBusy = true;
+  document.querySelectorAll('#shuffleRecipesBtn, #applyNbRepasBtn, #genAllImgBtn').forEach(b=> b.disabled = true);
+  let ok = false;
+  try{
+    const res = await generateAiPlan(profile, plan);
+    await purgeAiPlanImages(profile.aiPlan);
+    profile.aiPlan = {sig: aiPlanSignature(profile, plan), createdAt: Date.now(), meals: res.meals};
+    const saved = await saveProfile(profile);
+    state.profile = profile;
+    ok = true;
+    aiPlanBusy = false;
+    renderNutrition(profile, plan);
+    showToast(saved ? 'Recettes IA générées ✨ — création des photos…' : 'Recettes générées, mais la sauvegarde a échoué ⚠️');
+    await generateAllRecipeImages();
+  }catch(err){
+    console.error('Recettes IA :', err);
+    setImgStatus('⚠️ ' + (err.message || 'Échec de la génération IA') + ' — tes recettes précédentes sont conservées.');
+    showToast('Génération IA impossible : ' + (err.message || 'erreur inconnue'));
+  }finally{
+    aiPlanBusy = false;
+    if(!ok) document.querySelectorAll('#shuffleRecipesBtn, #applyNbRepasBtn, #genAllImgBtn').forEach(b=> b.disabled = false);
+  }
+}
+
+async function handleNewSuggestions(profile, plan){
+  if(getPollKey()){
+    await runAiSuggestions(profile, plan);
+    return;
+  }
+  // Sans clé : on retombe sur la base de recettes intégrée (non IA).
+  if(profile.aiPlan){ delete profile.aiPlan; await saveProfile(profile); state.profile = profile; }
+  recipeSeed += 1;
+  renderNutrition(profile, plan);
+  showToast('Ajoute ta clé Pollinations pour des recettes générées par IA.');
+}
+
+function aiRecipeCardHtml(m){
+  return `
+    <div class="recipe-card">
+      <div class="recipe-img" data-recipe="${escapeHtml(m.t)}"></div>
+      <div class="recipe-head">
+        <span class="recipe-title">✨ ${escapeHtml(m.t)}</span>
+        <span class="recipe-meta">~${m.kcal} kcal (cible ${m.targetKcal} kcal) · ${m.prep} min</span>
+        <span class="recipe-meta">P ${m.p} g · G ${m.c} g · L ${m.f} g</span>
+      </div>
+      <details>
+        <summary>Voir la recette (ingrédients &amp; étapes)</summary>
+        <div class="recipe-body">
+          <p class="recipe-sub">Ingrédients (quantités ajustées à ta cible)</p>
+          <ul>${m.ing.map(i=>`<li>${escapeHtml(i)}</li>`).join('')}</ul>
+          <p class="recipe-sub">Préparation</p>
+          <ol>${m.steps.map(step=>`<li>${escapeHtml(step)}</li>`).join('')}</ol>
+        </div>
+      </details>
+    </div>`;
+}
+
+function bindNutritionAi(profile, plan){
+  const sel = document.getElementById('nbRepasSelect');
+  const prev = document.getElementById('nbRepasPreview');
+  const applyBtn = document.getElementById('applyNbRepasBtn');
+  const showPreview = ()=>{
+    if(!sel || !prev) return;
+    prev.textContent = MEAL_LAYOUTS[parseInt(sel.value, 10)].map(m=> `${m.label} ${Math.round(m.pct*100)} %`).join(' · ');
+  };
+  if(sel){ sel.addEventListener('change', showPreview); showPreview(); }
+  if(applyBtn){
+    applyBtn.addEventListener('click', async ()=>{
+      if(aiPlanBusy) return;
+      const n = parseInt(sel.value, 10);
+      profile.nbRepas = n;
+      await purgeAiPlanImages(profile.aiPlan);
+      delete profile.aiPlan;
+      await saveProfile(profile);
+      state.profile = profile;
+      if(getPollKey()){
+        renderNutrition(profile, plan);
+        await runAiSuggestions(profile, plan);
+      } else {
+        renderNutrition(profile, plan);
+        showToast(`Plan en ${n} repas appliqué (ajoute ta clé Pollinations pour des recettes IA).`);
+      }
+    });
+  }
+}
+
 function recipeCardHtml(recipe, targetKcal, targetProtein){
   if(!recipe) return '';
   const s = getScaledRecipe(recipe, targetKcal);
@@ -1357,7 +1617,18 @@ function renderNutrition(profile, plan){
 
   let mealsHtml = '';
   let totalRecipeProtein = 0;
-  MEALS.forEach((m, i)=>{
+  const aiPlanView = getValidAiPlan(profile, plan);
+  getMeals(profile).forEach((m, i)=>{
+    if(aiPlanView){
+      const am = aiPlanView.meals[i];
+      totalRecipeProtein += am.p;
+      mealsHtml += `
+      <div class="meal-card">
+        <div class="meal-head"><h4>${escapeHtml(m.label)}</h4><span class="meal-kcal">~${am.kcal} kcal</span></div>
+        ${aiRecipeCardHtml(am)}
+      </div>`;
+      return;
+    }
     const kcal = Math.round(plan.calTarget * m.pct);
     const proteinTarget = Math.round(plan.proteinG * m.pct);
     const recipe = pickRecipe(m.key, obj, recipeSeed + i, allergenList);
@@ -1377,9 +1648,18 @@ function renderNutrition(profile, plan){
     : '';
 
   const proteinRatio = plan.proteinG > 0 ? totalRecipeProtein / plan.proteinG : 1;
-  const coherenceHtml = proteinRatio >= 0.85
+  let coherenceHtml = proteinRatio >= 0.85
     ? `<div class="ok-box">✅ Avec ces recettes (portions ajustées comme indiqué), tu couvres environ ${totalRecipeProtein} g de protéines sur les ${plan.proteinG} g visés — cohérent avec ton objectif.</div>`
     : `<div class="warn-box">⚠️ Avec ces recettes, tu n'atteins qu'environ ${totalRecipeProtein} g de protéines sur les ${plan.proteinG} g visés (~${Math.round(proteinRatio*100)}%). Ajoute une source de protéines (skyr, blancs d'œufs, whey) sur une collation ou augmente les portions de viande/poisson/tofu pour combler l'écart.</div>`;
+
+  if(aiPlanView){
+    const tot = sumAiMeals(aiPlanView.meals);
+    const dev = aiMaxDeviation(tot, plan);
+    const line = `Total des recettes : <b>${tot.kcal} kcal</b> · P ${tot.p} g / G ${tot.c} g / L ${tot.f} g — cibles du jour : ${plan.calTarget} kcal · P ${plan.proteinG} g / G ${plan.carbsG} g / L ${plan.fatG} g.`;
+    coherenceHtml = dev <= 0.10
+      ? `<div class="ok-box">✅ Recettes générées par IA et ajustées à tes macros. ${line}</div>`
+      : `<div class="warn-box">⚠️ Les recettes IA s'écartent un peu de tes macros (${Math.round(dev*100)} % d'écart max). ${line} Clique sur « Nouvelles suggestions » pour une meilleure proposition.</div>`;
+  }
 
   const tips = {
     perte: ["Bois 1.5 à 2L d'eau par jour, ça aide à gérer la faim.","Priorise les aliments à forte densité nutritionnelle (légumes, protéines maigres) pour rester rassasié·e avec moins de calories.","Garde 1 repas 'plaisir' par semaine pour tenir sur la durée.","Ne descends jamais sous ton métabolisme de base (BMR) trop longtemps."],
@@ -1423,9 +1703,21 @@ function renderNutrition(profile, plan){
         </div>
       </div>
 
+      <div class="macro-editor" id="mealCountEditor">
+        <h3 class="meal-grid-title" style="margin-bottom:2px;">Nombre de repas par jour</h3>
+        <p class="sub" style="margin-top:2px;">Tes macros du jour sont réparties sur ce nombre de repas. Appliquer régénère le plan complet (recettes IA + photos si ta clé est enregistrée).</p>
+        <div class="field" style="max-width:260px;"><label for="nbRepasSelect">Repas par jour</label>
+          <select id="nbRepasSelect">${[2,3,4,5,6].map(n=> `<option value="${n}" ${n === (profile.nbRepas || 4) ? 'selected' : ''}>${n} repas</option>`).join('')}</select>
+        </div>
+        <p class="macro-editor-preview" id="nbRepasPreview"></p>
+        <div class="macro-editor-actions">
+          <button type="button" class="btn btn-accent" id="applyNbRepasBtn">Appliquer et générer le plan</button>
+        </div>
+      </div>
+
       <div class="macro-editor" id="imgSettings">
-        <h3 class="meal-grid-title" style="margin-bottom:2px;">Images des recettes (Pollinations.ai)</h3>
-        <p class="sub" style="margin-top:2px;">Colle ta clé API Pollinations : elle reste uniquement dans ce navigateur (jamais dans le fichier ni dans l'export). Les images générées sont conservées et intégrées à l'export PDF.</p>
+        <h3 class="meal-grid-title" style="margin-bottom:2px;">IA : recettes &amp; photos (Pollinations.ai)</h3>
+        <p class="sub" style="margin-top:2px;">Colle ta clé API Pollinations : elle sert à générer les recettes et les photos, et reste uniquement dans ce navigateur (jamais dans le fichier ni dans l'export). Les photos générées sont conservées et intégrées à l'export PDF.</p>
         <div class="field"><label for="pollKeyInput">Clé API</label><input type="password" id="pollKeyInput" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${getPollKey() ? 'Clé enregistrée (…' + escapeHtml(getPollKey().slice(-4)) + ')' : 'sk_… ou pk_…'}"></div>
         <div class="macro-editor-actions">
           <button type="button" class="btn btn-accent" id="pollKeySave">Enregistrer la clé</button>
@@ -1449,13 +1741,11 @@ function renderNutrition(profile, plan){
 
   const shuffleBtn = document.getElementById('shuffleRecipesBtn');
   if(shuffleBtn){
-    shuffleBtn.addEventListener('click', ()=>{
-      recipeSeed += 1;
-      renderNutrition(profile, plan);
-    });
+    shuffleBtn.addEventListener('click', ()=> handleNewSuggestions(profile, plan));
   }
 
   bindImageSettings();
+  bindNutritionAi(profile, plan);
 
   // ---- éditeur de macros manuel ----
   const mProtein = document.getElementById('macro_protein');
@@ -3022,7 +3312,8 @@ async function handleProfileSubmit(evt){
     const profile = {
       id: state.currentId || newId(),
       createdAt: (state.profile && state.profile.createdAt) || Date.now(),
-      ...data
+      ...data,
+      nbRepas: (state.profile && state.profile.nbRepas) || 4
     };
     recipeSeed = 0;
     trainingSeed = 0;
@@ -3180,7 +3471,22 @@ function buildNutritionPrintableHTML(profile, plan, history){
   const objLabel = {perte:'Perte de poids', prise:'Prise de masse', recomposition:'Recomposition (léger déficit)', maintien:'Maintien'}[profile.objectif];
   const allergenListPdf = profile.allergenes || [];
   let totalRecipeProteinPdf = 0;
-  const mealsHtmlPdf = MEALS.map((m,i)=>{
+  const apPdf = getValidAiPlan(profile, plan);
+  const mealsHtmlPdf = getMeals(profile).map((m,i)=>{
+    if(apPdf){
+      const am = apPdf.meals[i];
+      totalRecipeProteinPdf += am.p;
+      const imgAi = recipeImgCache.get(am.t);
+      return `
+      <div style="margin-bottom:14px; page-break-inside:avoid; break-inside:avoid; display:flex; gap:14px; align-items:flex-start;">
+        ${imgAi ? `<img src="${imgAi}" alt="${escapeHtml(am.t)}" style="width:190px; height:auto; aspect-ratio:3/2; object-fit:cover; border-radius:8px; flex-shrink:0;">` : ''}
+        <div style="flex:1; min-width:0;">
+          <p style="margin:0 0 2px;font-weight:700;font-size:13px;">${escapeHtml(m.label)} — ${escapeHtml(am.t)} <span style="font-weight:400;color:#666;">(~${am.kcal} kcal · P ${am.p} g / G ${am.c} g / L ${am.f} g · ${am.prep} min)</span></p>
+          <p style="margin:2px 0;font-size:12px;"><b>Ingrédients :</b> ${am.ing.map(escapeHtml).join(', ')}</p>
+          <p style="margin:2px 0;font-size:12px;"><b>Préparation :</b> ${am.steps.map(escapeHtml).join(' ')}</p>
+        </div>
+      </div>`;
+    }
     const kcal = Math.round(plan.calTarget * m.pct);
     const recipe = pickRecipe(m.key, profile.objectif, recipeSeed + i, allergenListPdf);
     if(!recipe) return `
