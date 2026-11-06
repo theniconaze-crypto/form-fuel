@@ -529,7 +529,7 @@ tailwind.config = {
 @media (max-width:820px){ .user-chip{width:100%; justify-content:space-between;} }
 
 .admin-table-wrap{overflow-x:auto; margin-top:10px; border:1px solid #DED6BE; border-radius:10px; background:#fff;}
-.admin-table{width:100%; border-collapse:collapse; font-size:13px; min-width:980px;}
+.admin-table{width:100%; border-collapse:collapse; font-size:13px; min-width:1120px;}
 .admin-table th{text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.5px; color:var(--ink-dim); padding:10px 10px; border-bottom:1px solid #DED6BE; background:var(--paper-alt);}
 .admin-table td{padding:10px; border-bottom:1px dashed #DED6BE; vertical-align:top;}
 .admin-table tr:last-child td{border-bottom:none;}
@@ -544,6 +544,9 @@ tailwind.config = {
 .perm-chk{display:flex; align-items:center; gap:6px; font-size:12px; cursor:pointer; white-space:nowrap;}
 .perm-chk input{width:16px; height:16px; min-height:0; accent-color:#B8901A; -webkit-appearance:checkbox; appearance:auto; border-radius:3px;}
 .perm-chk input:disabled{opacity:.5;}
+/* tableau admin : les colonnes de droits s'adaptent à leur contenu (plus de chevauchement avec la colonne « Clé API IA ») */
+.admin-table .perm-grid{grid-template-columns:repeat(2,max-content); gap:6px 18px;}
+.admin-table td.key-cell{min-width:230px; width:230px;}
 .subtabs{display:flex; flex-wrap:wrap; gap:6px; margin:12px 0 4px;}
 .subtabs button{
   min-height:38px; padding:6px 14px; border-radius:999px; border:1.5px solid #D9D2BC; background:#fff; color:var(--ink-dim);
@@ -4847,7 +4850,7 @@ async function adminRefreshUsers(){
       <td><select data-admin-status="${u.uid}" ${self ? 'disabled' : ''}>${opt('active', 'Actif', u.status)}${opt('pending', 'En attente', u.status)}${opt('disabled', 'Suspendu', u.status)}</select></td>
       <td><select data-admin-role="${u.uid}" ${self ? 'disabled' : ''}>${opt('user', 'Membre', u.role)}${opt('admin', 'Administrateur', u.role)}</select></td>
       <td><div class="perm-grid">${permHtml}</div>${adm ? '<small>Les administrateurs ont tous les droits.</small>' : ''}</td>
-      <td style="min-width:190px;">${adminKeyCellHtml(u, apiKeys)}</td>
+      <td class="key-cell">${adminKeyCellHtml(u, apiKeys)}</td>
       <td><div style="display:flex;flex-direction:column;gap:6px;"><button type="button" class="btn btn-ghost btn-sm" style="color:var(--ink);border-color:#D9D2BC;" data-admin-view="${u.uid}">👁 Voir ses plans</button><button type="button" class="btn btn-ghost btn-sm" style="color:var(--ink);border-color:#D9D2BC;" data-admin-reset="${escapeHtml(u.email || '')}">✉ Réinit. mot de passe</button><button type="button" class="btn btn-danger btn-sm" data-admin-delete="${u.uid}" ${self ? 'disabled title="Tu ne peux pas supprimer ton propre compte"' : ''}>🗑 Supprimer</button></div></td>
     </tr>`;
   }).join('');
