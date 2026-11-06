@@ -4704,7 +4704,7 @@ async function adminRefreshUsers(){
       <td><select data-admin-status="${u.uid}" ${self ? 'disabled' : ''}>${opt('active', 'Actif', u.status)}${opt('pending', 'En attente', u.status)}${opt('disabled', 'Suspendu', u.status)}</select></td>
       <td><select data-admin-role="${u.uid}" ${self ? 'disabled' : ''}>${opt('user', 'Membre', u.role)}${opt('admin', 'Administrateur', u.role)}</select></td>
       <td><div class="perm-grid">${permHtml}</div>${adm ? '<small>Les administrateurs ont tous les droits.</small>' : ''}</td>
-      <td><div style="display:flex;flex-direction:column;gap:6px;"><button type="button" class="btn btn-ghost btn-sm" style="color:var(--ink);border-color:#D9D2BC;" data-admin-view="${u.uid}">👁 Voir ses plans</button><button type="button" class="btn btn-ghost btn-sm" style="color:var(--ink);border-color:#D9D2BC;" data-admin-reset="${escapeHtml(u.email || '')}">✉ Réinit. mot de passe</button></div></td>
+      <td><div style="display:flex;flex-direction:column;gap:6px;"><button type="button" class="btn btn-ghost btn-sm" style="color:var(--ink);border-color:#D9D2BC;" data-admin-view="${u.uid}">👁 Voir ses plans</button><button type="button" class="btn btn-ghost btn-sm" style="color:var(--ink);border-color:#D9D2BC;" data-admin-reset="${escapeHtml(u.email || '')}">✉ Réinit. mot de passe</button><button type="button" class="btn btn-danger btn-sm" data-admin-delete="${u.uid}" ${self ? 'disabled title="Tu ne peux pas supprimer ton propre compte"' : ''}>🗑 Supprimer</button></div></td>
     </tr>`;
   }).join('');
   box.innerHTML = `
@@ -4773,7 +4773,31 @@ function genPassword(){
   return Array.from(a, n=> chars[n % chars.length]).join('');
 }
 
+/* Supprime le compte : profils, plans, suivi, performances puis fiche utilisateur, directement dans Firestore. */
+async function adminDeleteUser(uid){
+  const u = adminState.users.find(x=> x.uid === uid);
+  if(!u || uid === AUTH.user.uid) return;
+  if(!confirm('Supprimer définitivement le compte de ' + (u.displayName || u.email) + ' (' + (u.email || '') + ') ?\n\nSes profils, plans, suivis et performances seront effacés de Firebase. Cette action est irréversible.')) return;
+  try{
+    const snap = await FB.getDocs(FB.collection(FB.db, 'users', uid, 'store'));
+    for(let i = 0; i < snap.docs.length; i += 400){
+      const batch = FB.writeBatch(FB.db);
+      snap.docs.slice(i, i + 400).forEach(d=> batch.delete(FB.doc(FB.db, 'users', uid, 'store', d.id)));
+      await batch.commit();
+    }
+    await FB.deleteDoc(FB.doc(FB.db, 'users', uid));
+    if(adminState.viewUid === uid){ adminState.viewUid = null; const v = $a('adminViewer'); if(v) v.innerHTML = ''; }
+    showToast('Compte supprimé 🗑');
+  }catch(err){
+    console.error(err);
+    showToast('Suppression impossible : ' + authMsg(err));
+  }
+  await adminRefreshUsers();
+}
+
 async function onAdminClick(e){
+  const del = e.target.closest('[data-admin-delete]');
+  if(del){ if(!del.disabled) adminDeleteUser(del.dataset.adminDelete); return; }
   if(e.target.closest('[data-admin-keysave]')){ adminKeySave(false); return; }
   if(e.target.closest('[data-admin-keyclear]')){ adminKeySave(true); return; }
   if(e.target.closest('[data-admin-genpw]')){ $a('c_pw').value = genPassword(); return; }
