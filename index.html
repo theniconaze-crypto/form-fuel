@@ -544,6 +544,11 @@ tailwind.config = {
 .perm-chk{display:flex; align-items:center; gap:6px; font-size:12px; cursor:pointer; white-space:nowrap;}
 .perm-chk input{width:16px; height:16px; min-height:0; accent-color:#B8901A; -webkit-appearance:checkbox; appearance:auto; border-radius:3px;}
 .perm-chk input:disabled{opacity:.5;}
+/* Les cases de droits du formulaire « Créer un compte » sont dans un .field : on neutralise les styles
+   .field label (majuscules grises) et .field input (largeur 100 %, hauteur 46 px) qui les déformaient sur iPhone. */
+.field label.perm-chk{font-size:12px; font-weight:500; text-transform:none; letter-spacing:0; color:var(--ink); min-width:0;}
+.field .perm-chk input{width:18px; height:18px; min-width:18px; min-height:0; flex:0 0 18px; padding:0; margin:0; border:0; box-shadow:none; background:transparent; -webkit-appearance:checkbox; appearance:auto; accent-color:#B8901A;}
+.perm-grid{min-width:0;}
 /* tableau admin : les colonnes de droits s'adaptent à leur contenu (plus de chevauchement avec la colonne « Clé API IA ») */
 .admin-table .perm-grid{grid-template-columns:repeat(2,max-content); gap:6px 18px;}
 .admin-table td.key-cell{min-width:230px; width:230px;}
@@ -4729,7 +4734,7 @@ function renderAdmin(){
           <div class="field"><label for="c_status">Statut</label><select id="c_status"><option value="active">Actif (accès immédiat)</option><option value="disabled">Inactif (accès bloqué)</option></select></div>
           <div class="field"><label for="c_role">Rôle</label><select id="c_role"><option value="user">Membre</option><option value="admin">Administrateur</option></select></div>
           <div class="field" style="grid-column:1/-1;"><label>Droits d'accès (ignorés pour un administrateur)</label>
-            <div class="perm-grid" style="grid-template-columns:repeat(auto-fill,minmax(170px,1fr));">${PERM_DEFS.map(([k, l])=> `<label class="perm-chk"><input type="checkbox" data-create-perm="${k}" checked> ${l}</label>`).join('')}</div></div>
+            <div class="perm-grid" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,150px),1fr));">${PERM_DEFS.map(([k, l])=> `<label class="perm-chk"><input type="checkbox" data-create-perm="${k}" checked> ${l}</label>`).join('')}</div></div>
           <div class="form-actions"><button type="submit" class="btn btn-accent" id="adminCreateBtn">Créer le compte</button></div>
           <div id="adminCreateMsg" style="grid-column:1/-1;"></div>
         </form>
