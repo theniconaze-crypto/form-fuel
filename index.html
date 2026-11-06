@@ -783,10 +783,11 @@ tailwind.config = {
     </div>
 
     <div class="auth-view" id="authFormView" style="display:none;">
-      <div class="auth-tabs">
+      <div class="auth-tabs" id="authTabs">
         <button type="button" data-auth-mode="login" class="active">Connexion</button>
         <button type="button" data-auth-mode="signup">Créer un compte</button>
       </div>
+      <p class="auth-ok show" id="authFirstNote" style="display:none;margin-bottom:12px;">Aucun administrateur n'existe encore : crée le premier compte, il sera administrateur.</p>
       <form id="authForm" novalidate>
         <div class="field" id="authNameWrap" style="display:none;"><label for="a_name">Prénom</label><input type="text" id="a_name" autocomplete="given-name" placeholder="Ex : Camille"></div>
         <div class="field"><label for="a_email">Email</label><input type="email" id="a_email" autocomplete="email" inputmode="email" placeholder="toi@exemple.com"></div>
@@ -4365,11 +4366,20 @@ function authMessage(kind, txt){
   const el = kind === 'ok' ? ok : err;
   el.textContent = txt; el.classList.add('show');
 }
-function authForm(){ authMessage('', ''); $a('a_pw').value = ''; authShow('authFormView'); }
+/* L'inscription n'est proposée que tant qu'aucun administrateur n'existe (création du tout premier compte). */
+async function authForm(){
+  authMessage('', ''); $a('a_pw').value = '';
+  let first = false;
+  try{ first = !(await FB.getDoc(FB.doc(FB.db, 'meta', 'bootstrap'))).exists(); }catch(e){ first = false; }
+  $a('authTabs').style.display = first ? '' : 'none';
+  $a('authFirstNote').style.display = first ? '' : 'none';
+  setAuthMode(first ? AUTH.mode : 'login');
+  authShow('authFormView');
+}
 function authInfo(kind, extra){
   const T = {
     pending:  ['Compte en attente de validation', 'Ton compte a bien été créé. Un administrateur doit valider ton accès avant que tu puisses utiliser l\'application. Reviens plus tard ou clique sur « Vérifier à nouveau ».'],
-    disabled: ['Compte suspendu', 'Ton accès a été suspendu par un administrateur.'],
+    disabled: ['Compte inactif', 'Ton compte est inactif. Contacte un administrateur pour le réactiver.'],
     error:    ['Oups…', extra || 'Une erreur est survenue.']
   }[kind];
   $a('authInfoTitle').textContent = T[0];
@@ -4445,26 +4455,27 @@ async function ensureUserDoc(user){
   const snap = await FB.getDoc(ref);
   if(snap.exists()) return snap.data();
 
-  const base = {
-    email: user.email || '',
-    displayName: AUTH.pendingName || user.displayName || (user.email || '').split('@')[0] || 'Utilisateur',
-    createdAt: FB.serverTimestamp(),
-    role: 'user', status: 'pending', perms: allPerms(true)
-  };
-  // Tout premier compte : devient administrateur (le document meta/bootstrap ne peut être créé qu'une fois)
+  // Pas de compte applicatif : seul le tout premier utilisateur devient admin.
+  // (le document meta/bootstrap ne peut être créé qu'une fois)
   const bref = FB.doc(FB.db, 'meta', 'bootstrap');
   const bs = await FB.getDoc(bref);
   if(!bs.exists()){
     try{
       const batch = FB.writeBatch(FB.db);
       batch.set(bref, {uid: user.uid, createdAt: FB.serverTimestamp()});
-      batch.set(ref, Object.assign({}, base, {role: 'admin', status: 'active'}));
+      batch.set(ref, {
+        email: user.email || '',
+        displayName: AUTH.pendingName || user.displayName || (user.email || '').split('@')[0] || 'Admin',
+        createdAt: FB.serverTimestamp(),
+        role: 'admin', status: 'active', perms: allPerms(true)
+      });
       await batch.commit();
       return (await FB.getDoc(ref)).data();
-    }catch(e){ /* un autre compte est passé admin entre-temps : on crée un compte standard */ }
+    }catch(e){ /* un admin existe déjà */ }
   }
-  await FB.setDoc(ref, base);
-  return (await FB.getDoc(ref)).data();
+  const err = new Error('Ce compte n\'a pas été créé par un administrateur : accès refusé.');
+  err.code = 'ff/not-provisioned';
+  throw err;
 }
 
 let authSeq = 0;
@@ -4489,7 +4500,7 @@ async function handleAuthState(user){
     else authInfo('pending');
   }catch(err){
     console.error('Auth :', err);
-    authInfo('error', authMsg(err));
+    authInfo('error', err && err.code === 'ff/not-provisioned' ? err.message : authMsg(err));
   }
 }
 
@@ -4588,13 +4599,31 @@ function renderAdmin(){
     c.dataset.bound = '1';
     c.addEventListener('change', onAdminChange);
     c.addEventListener('click', onAdminClick);
+    c.addEventListener('submit', onAdminSubmit);
   }
   if(!$a('adminUsers')){
     c.innerHTML = `
       <div class="sheet">
-        <div class="sheet-tab" style="background:var(--accent);">Admin</div>
+        <div class="sheet-tab" style="background:var(--accent);">Nouveau compte</div>
+        <h2>Créer un compte</h2>
+        <p class="sub">Les comptes ne peuvent être créés que depuis cet écran. Communique ensuite l'email et le mot de passe à la personne (elle pourra le changer via « Mot de passe oublié »).</p>
+        <form id="adminCreateForm" class="sheet-grid" novalidate>
+          <div class="field"><label for="c_name">Prénom</label><input type="text" id="c_name" autocomplete="off"></div>
+          <div class="field"><label for="c_email">Email</label><input type="email" id="c_email" autocomplete="off" inputmode="email"></div>
+          <div class="field"><label for="c_pw">Mot de passe (6 caractères min.)</label>
+            <div style="display:flex;gap:8px;"><input type="text" id="c_pw" autocomplete="off" style="flex:1;min-width:0;"><button type="button" class="btn btn-ghost btn-sm" style="color:var(--ink);border-color:#D9D2BC;" data-admin-genpw>Générer</button></div></div>
+          <div class="field"><label for="c_status">Statut</label><select id="c_status"><option value="active">Actif (accès immédiat)</option><option value="disabled">Inactif (accès bloqué)</option></select></div>
+          <div class="field"><label for="c_role">Rôle</label><select id="c_role"><option value="user">Membre</option><option value="admin">Administrateur</option></select></div>
+          <div class="field" style="grid-column:1/-1;"><label>Droits d'accès (ignorés pour un administrateur)</label>
+            <div class="perm-grid" style="grid-template-columns:repeat(auto-fill,minmax(170px,1fr));">${PERM_DEFS.map(([k, l])=> `<label class="perm-chk"><input type="checkbox" data-create-perm="${k}" checked> ${l}</label>`).join('')}</div></div>
+          <div class="form-actions"><button type="submit" class="btn btn-accent" id="adminCreateBtn">Créer le compte</button></div>
+          <div id="adminCreateMsg" style="grid-column:1/-1;"></div>
+        </form>
+      </div>
+      <div class="sheet">
+        <div class="sheet-tab" style="background:var(--g-jambes); color:#fff;">Admin</div>
         <h2>Comptes &amp; droits d'accès</h2>
-        <p class="sub">Valide les nouveaux comptes, choisis les fonctionnalités accessibles à chacun et consulte les plans créés par les utilisateurs.</p>
+        <p class="sub">Active ou désactive un compte, choisis les fonctionnalités accessibles à chacun et consulte les plans créés par les utilisateurs.</p>
         <div id="adminUsers"><p class="empty-note">Chargement…</p></div>
       </div>
       <div id="adminViewer"></div>`;
@@ -4627,7 +4656,7 @@ async function adminRefreshUsers(){
       <td><select data-admin-status="${u.uid}" ${self ? 'disabled' : ''}>${opt('active', 'Actif', u.status)}${opt('pending', 'En attente', u.status)}${opt('disabled', 'Suspendu', u.status)}</select></td>
       <td><select data-admin-role="${u.uid}" ${self ? 'disabled' : ''}>${opt('user', 'Membre', u.role)}${opt('admin', 'Administrateur', u.role)}</select></td>
       <td><div class="perm-grid">${permHtml}</div>${adm ? '<small>Les administrateurs ont tous les droits.</small>' : ''}</td>
-      <td><button type="button" class="btn btn-ghost btn-sm" style="color:var(--ink);border-color:#D9D2BC;" data-admin-view="${u.uid}">👁 Voir ses plans</button></td>
+      <td><div style="display:flex;flex-direction:column;gap:6px;"><button type="button" class="btn btn-ghost btn-sm" style="color:var(--ink);border-color:#D9D2BC;" data-admin-view="${u.uid}">👁 Voir ses plans</button><button type="button" class="btn btn-ghost btn-sm" style="color:var(--ink);border-color:#D9D2BC;" data-admin-reset="${escapeHtml(u.email || '')}">✉ Réinit. mot de passe</button></div></td>
     </tr>`;
   }).join('');
   box.innerHTML = `
@@ -4663,7 +4692,49 @@ function onAdminChange(e){
     adminLoadProfileData().then(adminRenderViewer);
   }
 }
-function onAdminClick(e){
+async function onAdminSubmit(e){
+  if(e.target.id !== 'adminCreateForm') return;
+  e.preventDefault();
+  const msg = $a('adminCreateMsg'), btn = $a('adminCreateBtn');
+  const show = (cls, txt)=> { msg.innerHTML = txt ? `<div class="${cls}">${txt}</div>` : ''; };
+  const name = $a('c_name').value.trim(), email = $a('c_email').value.trim(), pw = $a('c_pw').value;
+  const status = $a('c_status').value, role = $a('c_role').value;
+  if(!name || !email || pw.length < 6){ show('warn-box', 'Renseigne un prénom, un email valide et un mot de passe d\'au moins 6 caractères.'); return; }
+  const perms = allPerms(false);
+  document.querySelectorAll('[data-create-perm]').forEach(cb=> { perms[cb.dataset.createPerm] = cb.checked; });
+  btn.disabled = true; show('', '');
+  let uid = null;
+  try{
+    uid = await FB.createAuthUser(email, pw, name);
+    await FB.setDoc(FB.doc(FB.db, 'users', uid), {
+      email, displayName: name, createdAt: FB.serverTimestamp(), createdBy: AUTH.user.uid,
+      role, status, perms: role === 'admin' ? allPerms(true) : perms
+    });
+    show('ok-box', `✅ Compte créé pour <b>${escapeHtml(name)}</b> (${escapeHtml(email)}) — ${status === 'active' ? 'actif' : 'inactif'}. Transmets-lui son email et son mot de passe.`);
+    $a('adminCreateForm').reset();
+    adminRefreshUsers();
+  }catch(err){
+    console.error(err);
+    show('warn-box', '⚠️ ' + escapeHtml(authMsg(err)) + (uid ? ' Le compte de connexion a été créé mais pas sa fiche : réessaie avec un autre email ou contacte le support.' : ''));
+  }finally{ btn.disabled = false; }
+}
+
+function genPassword(){
+  const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  const a = new Uint32Array(10); (window.crypto || window.msCrypto).getRandomValues(a);
+  return Array.from(a, n=> chars[n % chars.length]).join('');
+}
+
+async function onAdminClick(e){
+  if(e.target.closest('[data-admin-genpw]')){ $a('c_pw').value = genPassword(); return; }
+  const rs = e.target.closest('[data-admin-reset]');
+  if(rs){
+    const email = rs.dataset.adminReset;
+    if(!email || !confirm('Envoyer un email de réinitialisation du mot de passe à ' + email + ' ?')) return;
+    try{ await FB.sendPasswordResetEmail(FB.auth, email); showToast('Email de réinitialisation envoyé ✉️'); }
+    catch(err){ showToast('Échec : ' + authMsg(err)); }
+    return;
+  }
   const v = e.target.closest('[data-admin-view]');
   if(v){ adminState.tab = 'bilan'; adminOpenUser(v.dataset.adminView); return; }
   const s = e.target.closest('[data-admin-subtab]');
@@ -4871,7 +4942,19 @@ try{
     updateProfile: authM.updateProfile,
     doc: fsM.doc, getDoc: fsM.getDoc, setDoc: fsM.setDoc, updateDoc: fsM.updateDoc, deleteDoc: fsM.deleteDoc,
     collection: fsM.collection, getDocs: fsM.getDocs, query: fsM.query, where: fsM.where, documentId: fsM.documentId,
-    writeBatch: fsM.writeBatch, serverTimestamp: fsM.serverTimestamp
+    writeBatch: fsM.writeBatch, serverTimestamp: fsM.serverTimestamp,
+    // Création d'un compte par l'admin : instance secondaire, pour ne pas déconnecter l'admin
+    createAuthUser: async (email, password, displayName)=>{
+      const sec = appM.initializeApp(firebaseConfig, 'secondary-' + Date.now());
+      try{
+        const sauth = authM.getAuth(sec);
+        const cred = await authM.createUserWithEmailAndPassword(sauth, email, password);
+        try{ await authM.updateProfile(cred.user, {displayName}); }catch(e){}
+        const uid = cred.user.uid;
+        await authM.signOut(sauth);
+        return uid;
+      } finally { try{ await appM.deleteApp(sec); }catch(e){} }
+    }
   };
   window.dispatchEvent(new Event('ff-fb-ready'));
 }catch(e){
