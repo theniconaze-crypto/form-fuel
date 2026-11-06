@@ -1844,12 +1844,18 @@ function bindImageSettings(){
    de chaque repas, l'objectif, les allergènes et le nombre de repas. On
    recalcule ensuite les kcal à partir des macros et on met chaque repas à
    l'échelle (quantités des ingrédients comprises) pour tomber pile sur la cible.
-   Si les totaux du jour s'écartent encore de > 10 %, on redemande une fois
-   à l'IA en lui indiquant l'écart constaté.
+   VERROU : le total du jour (kcal, P, G, L) ne doit jamais s'écarter de plus de
+   5 % du plan initial. Après chaque réponse de l'IA, un affinage local ajuste
+   les quantités d'ingrédients ; si l'écart dépasse encore 5 %, on redemande à
+   l'IA en lui indiquant l'écart constaté (4 essais max). Si aucun essai
+   n'est dans la limite, le plan n'est PAS appliqué (l'ancien est conservé).
 ========================================================================= */
 const POLL_CHAT = 'https://gen.pollinations.ai/v1/chat/completions';
 const POLL_TEXT_MODEL = 'openai';
 let aiPlanBusy = false;
+const AI_MAX_DEV = 0.05;        // écart maximal toléré entre le plan IA et le plan de macros initial (±5 %)
+const AI_TUNE_TARGET = 0.03;    // l'affinage local s'arrête dès que l'écart passe sous 3 % (marge de sécurité)
+const AI_MAX_ATTEMPTS = 4;      // nombre maximal de propositions demandées à l'IA
 
 function aiPlanSignature(profile, plan){
   const al = (profile.allergenes || []).map(a=> a.id).sort().join(',');
@@ -1934,7 +1940,7 @@ function buildAiMessages(profile, plan, feedback){
     `Répartition imposée (${targets.length} repas, dans cet ordre) :`,
     targets.map((t,i)=> `${i+1}. ${t.label} : ~${t.kcal} kcal, ${t.p} g protéines, ${t.c} g glucides, ${t.f} g lipides`).join('\n'),
     allerg.length ? `ALLERGÈNES À EXCLURE STRICTEMENT (aucun ingrédient, dérivé ou sauce en contenant) : ${allerg.join(', ')}.` : 'Aucun allergène à exclure.',
-    "Règles : recettes de cuisine française/méditerranéenne courante, ingrédients de supermarché, 3 à 6 étapes courtes par recette, temps de préparation réaliste. Varie les sources de protéines entre les repas. Petit-déjeuner et collations adaptés (pas de plat de dîner au petit-déjeuner). Chaque ingrédient commence par une quantité chiffrée avec unité (ex : \"150 g de blanc de poulet\", \"2 œufs\", \"1 c. à s. d'huile d'olive\"), poids crus. Les macros d'un repas doivent correspondre à la somme RÉELLE de ses ingrédients (valeurs de la table CIQUAL, sans sous-estimer : huiles, beurre de cacahuète, noix de coco, fruits secs, fromages, féculents) et rester proches de la cible du repas : ajuste les quantités pour que la somme des ingrédients atteigne la cible (±10 %). Pour chaque ingrédient, donne son poids en grammes (ou ml) et ses macros pour cette quantité exacte.",
+    "Règles : recettes de cuisine française/méditerranéenne courante, ingrédients de supermarché, 3 à 6 étapes courtes par recette, temps de préparation réaliste. Varie les sources de protéines entre les repas. Petit-déjeuner et collations adaptés (pas de plat de dîner au petit-déjeuner). Chaque ingrédient commence par une quantité chiffrée avec unité (ex : \"150 g de blanc de poulet\", \"2 œufs\", \"1 c. à s. d'huile d'olive\"), poids crus. Les macros d'un repas doivent correspondre à la somme RÉELLE de ses ingrédients (valeurs de la table CIQUAL, sans sous-estimer : huiles, beurre de cacahuète, noix de coco, fruits secs, fromages, féculents) et rester proches de la cible du repas : ajuste les quantités pour que la somme des ingrédients atteigne la cible (±5 %). RÈGLE ABSOLUE : le total de la journée (somme de tous les repas) doit rester à ±5 % MAXIMUM de CHAQUE cible journalière (kcal, protéines, glucides, lipides) ; additionne les macros de tous les repas et corrige tes quantités avant de répondre. Pour chaque ingrédient, donne son poids en grammes (ou ml) et ses macros pour cette quantité exacte.",
     feedback ? `CORRECTION À APPORTER : ${feedback}` : '',
     'Format JSON exact : {"repas":[{"label":"<libellé du repas>","titre":"<nom de la recette>","prep_min":<entier>,"ingredients":[{"q":"250 g de fromage blanc 0%","g":250,"kcal":115,"p":19,"c":10,"f":0.5}],"etapes":["..."]}]} (q = texte affiché avec quantité, g = poids en grammes ou ml, kcal/p/c/f = macros de cet ingrédient pour cette quantité) avec exactement ' + targets.length + ' éléments dans "repas", dans l\'ordre ci-dessus.'
   ].filter(Boolean).join('\n\n');
@@ -1984,7 +1990,8 @@ function normalizeAiMeals(raw, profile, plan){
       prep: Math.round(toNum(r.prep_min)) || 15, targetKcal, factor, calc: true,
       kcal: Math.round(fin.kcal), p: Math.round(fin.p), c: Math.round(fin.c), f: Math.round(fin.f),
       ing: scaled,
-      steps: r.etapes.map(String)
+      steps: r.etapes.map(String),
+      _tune: {texts, fbs, factor}   // temporaire : utilisé par tuneAiMeals puis supprimé
     };
   });
 }
@@ -1994,25 +2001,100 @@ function sumAiMeals(list){
 }
 function aiMaxDeviation(tot, plan){
   const d = (a, b)=> b > 0 ? Math.abs(a - b) / b : 0;
-  return Math.max(d(tot.p, plan.proteinG), d(tot.c, plan.carbsG), d(tot.f, plan.fatG));
+  return Math.max(d(tot.kcal, plan.calTarget), d(tot.p, plan.proteinG), d(tot.c, plan.carbsG), d(tot.f, plan.fatG));
+}
+
+/* Affinage local : ajuste les quantités d'ingrédients (±35 % max par rapport à la
+   proposition de l'IA, par pas de 5 g) pour ramener le TOTAL du jour (kcal, P, G, L)
+   au plus près du plan initial. Les macros sont recalculées sur les quantités
+   réellement affichées (après arrondi), donc ce qui est vérifié = ce qui est montré. */
+function tuneAiMeals(meals, plan){
+  const M_MIN = 0.65, M_MAX = 1.5, STEPS = [1.1, 0.9, 1.25, 0.8];
+  const items = [];
+  meals.forEach((meal, mi)=>{
+    const t = meal._tune;
+    if(!t) return;
+    meal.ing.forEach((cur, j)=>{
+      items.push({mi, j, base: t.texts[j], fb: t.fbs[j], factor: t.factor, m: 1, cur, mac: nutriIngredient(cur, t.fbs[j], t.factor)});
+    });
+  });
+  if(items.length){
+    const tot = {kcal:0, p:0, c:0, f:0};
+    items.forEach(it=>{ tot.kcal += it.mac.kcal; tot.p += it.mac.p; tot.c += it.mac.c; tot.f += it.mac.f; });
+    const rel = (a, b)=> b > 0 ? (a - b) / b : 0;
+    const score = t=> aiMaxDeviation(t, plan) + Math.pow(rel(t.kcal, plan.calTarget), 2) + Math.pow(rel(t.p, plan.proteinG), 2) + Math.pow(rel(t.c, plan.carbsG), 2) + Math.pow(rel(t.f, plan.fatG), 2);
+    for(let iter = 0; iter < 80 && aiMaxDeviation(tot, plan) > AI_TUNE_TARGET; iter++){
+      let bestMove = null, bestScore = score(tot);
+      for(const it of items){
+        for(const st of STEPS){
+          const nm = Math.min(M_MAX, Math.max(M_MIN, it.m * st));
+          if(Math.abs(nm - it.m) < 1e-9) continue;
+          const txt = scaleIngredientText(it.base, it.factor * nm);
+          if(txt === it.cur) continue;
+          const mac = nutriIngredient(txt, it.fb, it.factor * nm);
+          const t2 = {kcal: tot.kcal - it.mac.kcal + mac.kcal, p: tot.p - it.mac.p + mac.p, c: tot.c - it.mac.c + mac.c, f: tot.f - it.mac.f + mac.f};
+          const sc = score(t2);
+          if(sc < bestScore - 1e-9){ bestScore = sc; bestMove = {it, nm, txt, mac}; }
+        }
+      }
+      if(!bestMove) break;
+      const {it, nm, txt, mac} = bestMove;
+      tot.kcal += mac.kcal - it.mac.kcal; tot.p += mac.p - it.mac.p; tot.c += mac.c - it.mac.c; tot.f += mac.f - it.mac.f;
+      it.m = nm; it.cur = txt; it.mac = mac;
+    }
+    items.forEach(it=>{ meals[it.mi].ing[it.j] = it.cur; });
+  }
+  meals.forEach(meal=>{
+    const t = meal._tune;
+    if(t){
+      const fin = nutriMeal(meal.ing, t.fbs, t.factor);
+      if(fin.kcal > 0){ meal.kcal = Math.round(fin.kcal); meal.p = Math.round(fin.p); meal.c = Math.round(fin.c); meal.f = Math.round(fin.f); }
+    }
+    delete meal._tune;
+  });
+  return meals;
+}
+
+function aiDeviationFeedback(tot, plan){
+  const row = (nom, a, b, u)=>{
+    const pct = b > 0 ? Math.round((a - b) / b * 100) : 0;
+    return `${nom} : ${a}${u} pour une cible de ${b}${u} (${pct > 0 ? '+' : ''}${pct} %)`;
+  };
+  return `Ta proposition précédente totalisait — ${row('kcal', tot.kcal, plan.calTarget, '')} ; ${row('protéines', tot.p, plan.proteinG, ' g')} ; ${row('glucides', tot.c, plan.carbsG, ' g')} ; ${row('lipides', tot.f, plan.fatG, ' g')}. Chaque total journalier doit être à ±${Math.round(AI_MAX_DEV*100)} % MAXIMUM de sa cible. Augmente ou réduis les quantités des ingrédients concernés (somme réelle des ingrédients) pour corriger les écarts.`;
 }
 
 async function generateAiPlan(profile, plan){
-  let feedback = '', best = null, bestDev = Infinity;
-  for(let attempt = 0; attempt < 3; attempt++){
+  const limitPct = Math.round(AI_MAX_DEV * 100);
+  let feedback = '', best = null, bestDev = Infinity, lastFormatErr = null;
+  for(let attempt = 0; attempt < AI_MAX_ATTEMPTS; attempt++){
     setImgStatus(attempt ? '✨ Ajustement des recettes pour coller aux macros…' : '✨ L\'IA compose tes recettes…');
     ffLoader.phase('compose', attempt
-      ? `Nouvelle proposition pour mieux coller aux macros (essai ${attempt + 1}/3)`
+      ? `Nouvelle proposition pour mieux coller aux macros (essai ${attempt + 1}/${AI_MAX_ATTEMPTS})`
       : 'L\'IA imagine une journée complète (peut prendre 20 à 60 s)');
     const raw = await callPollJson(buildAiMessages(profile, plan, feedback));
-    ffLoader.phase('check', `Mise à l'échelle des quantités et calcul réel d'après les ingrédients${attempt ? ` (essai ${attempt + 1}/3)` : ''}`);
-    const meals = normalizeAiMeals(raw, profile, plan);
+    ffLoader.phase('check', `Mise à l'échelle des quantités et calcul réel d'après les ingrédients${attempt ? ` (essai ${attempt + 1}/${AI_MAX_ATTEMPTS})` : ''}`);
+    let meals;
+    try{
+      meals = normalizeAiMeals(raw, profile, plan);
+    }catch(e){
+      lastFormatErr = e;      // réponse mal formée : on retente au lieu d'abandonner
+      continue;
+    }
+    tuneAiMeals(meals, plan);
     const tot = sumAiMeals(meals);
     const dev = aiMaxDeviation(tot, plan);
-    ffLoader.detail(`Écart max avec tes cibles : ${Math.round(dev*100)} %${dev <= 0.10 ? ' — OK ✅' : ' — ajustement nécessaire'}`);
-    if(dev < bestDev){ best = {meals, tot}; bestDev = dev; }
-    if(dev <= 0.10) break;
-    feedback = `Ta proposition précédente totalisait ${tot.p} g de protéines, ${tot.c} g de glucides et ${tot.f} g de lipides, alors que les cibles sont ${plan.proteinG} g, ${plan.carbsG} g et ${plan.fatG} g. Ajuste les ingrédients et leurs quantités pour t'en rapprocher (somme réelle des ingrédients).`;
+    const okDev = dev <= AI_MAX_DEV;
+    ffLoader.detail(`Écart max avec tes cibles : ${(dev*100).toFixed(1)} % (limite ${limitPct} %)${okDev ? ' — OK ✅' : ' — ajustement nécessaire'}`);
+    if(dev < bestDev){ best = {meals, tot, dev}; bestDev = dev; }
+    if(okDev) break;
+    feedback = aiDeviationFeedback(tot, plan);
+  }
+  if(!best){
+    throw lastFormatErr || new Error('Réponse IA invalide.');
+  }
+  // VERROU : on n'applique jamais un plan dont l'écart dépasse la limite
+  if(bestDev > AI_MAX_DEV){
+    throw new Error(`l'IA n'a pas réussi à rester à ±${limitPct} % de tes macros après ${AI_MAX_ATTEMPTS} essais (meilleur écart : ${(bestDev*100).toFixed(1)} %)`);
   }
   return best;
 }
@@ -2036,7 +2118,7 @@ async function runAiSuggestions(profile, plan){
     const res = await generateAiPlan(profile, plan);
     ffLoader.phase('save', 'Remplacement de l\'ancien plan et sauvegarde du profil');
     await purgeAiPlanImages(profile.aiPlan);
-    profile.aiPlan = {sig: aiPlanSignature(profile, plan), createdAt: Date.now(), meals: res.meals};
+    profile.aiPlan = {sig: aiPlanSignature(profile, plan), createdAt: Date.now(), maxDev: res.dev, meals: res.meals};
     const saved = await saveProfile(profile);
     state.profile = profile;
     ok = true;
@@ -2223,9 +2305,9 @@ function renderNutrition(profile, plan){
     const tot = sumAiMeals(aiPlanView.meals);
     const dev = aiMaxDeviation(tot, plan);
     const line = `Total des recettes : <b>${tot.kcal} kcal</b> · P ${tot.p} g / G ${tot.c} g / L ${tot.f} g — cibles du jour : ${plan.calTarget} kcal · P ${plan.proteinG} g / G ${plan.carbsG} g / L ${plan.fatG} g.`;
-    coherenceHtml = dev <= 0.10
-      ? `<div class="ok-box">✅ Recettes générées par IA et ajustées à tes macros. ${line}</div>`
-      : `<div class="warn-box">⚠️ Les recettes IA s'écartent un peu de tes macros (${Math.round(dev*100)} % d'écart max). ${line} Clique sur « Nouvelles suggestions » pour une meilleure proposition.</div>`;
+    coherenceHtml = dev <= AI_MAX_DEV
+      ? `<div class="ok-box">✅ Recettes générées par IA, verrouillées à ±${Math.round(AI_MAX_DEV*100)} % de tes macros (écart max : ${(dev*100).toFixed(1)} %). ${line}</div>`
+      : `<div class="warn-box">⚠️ Ces recettes IA s'écartent de ${(dev*100).toFixed(1)} % de tes macros (limite : ${Math.round(AI_MAX_DEV*100)} %) — elles ont été générées avant le verrouillage. ${line} Clique sur « Nouvelles suggestions » pour en générer de nouvelles dans la limite.</div>`;
   }
 
   const tips = {
