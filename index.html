@@ -529,7 +529,7 @@ tailwind.config = {
 @media (max-width:820px){ .user-chip{width:100%; justify-content:space-between;} }
 
 .admin-table-wrap{overflow-x:auto; margin-top:10px; border:1px solid #DED6BE; border-radius:10px; background:#fff;}
-.admin-table{width:100%; border-collapse:collapse; font-size:13px; min-width:760px;}
+.admin-table{width:100%; border-collapse:collapse; font-size:13px; min-width:980px;}
 .admin-table th{text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.5px; color:var(--ink-dim); padding:10px 10px; border-bottom:1px solid #DED6BE; background:var(--paper-alt);}
 .admin-table td{padding:10px; border-bottom:1px dashed #DED6BE; vertical-align:top;}
 .admin-table tr:last-child td{border-bottom:none;}
@@ -1670,6 +1670,7 @@ let recipeImgBusy = false;
 
 /* La clé API Pollinations est enregistrée dans Firestore (settings/pollinations) par l'admin et chargée à la connexion. */
 let pollKeyCache = '';
+let pollKeySource = '';   // 'perso' (clé du compte) | 'defaut' (clé de secours) | ''
 function getPollKey(){ return (typeof can === 'function' && can('ai')) ? pollKeyCache : ''; }
 function setPollKey(k){
   try{ if(k) localStorage.setItem(POLL_KEY_STORE, k); else localStorage.removeItem(POLL_KEY_STORE); return true; }
@@ -2367,7 +2368,7 @@ function renderNutrition(profile, plan){
       <div class="macro-editor" id="imgSettings">
         <h3 class="meal-grid-title" style="margin-bottom:2px;">IA : recettes &amp; photos (Pollinations.ai)</h3>
         <p class="sub" style="margin-top:2px;">${getPollKey()
-          ? 'La clé API est configurée par l\'administrateur : les recettes et les photos sont générées par IA. Les photos sont conservées et intégrées à l\'export PDF.'
+          ? (pollKeySource === 'perso' ? 'Ta clé API personnelle est configurée par l\'administrateur' : 'Une clé API est configurée par l\'administrateur') + ' : les recettes et les photos sont générées par IA. Les photos sont conservées et intégrées à l\'export PDF.'
           : (isAdmin() ? 'Aucune clé API enregistrée : ajoute-la dans l\'onglet « Réglages ».' : 'Aucune clé API n\'est encore configurée par l\'administrateur : le plan utilise les recettes de la base intégrée.')}</p>
         <p class="img-status" id="imgStatus"></p>
       </div>
@@ -4632,14 +4633,22 @@ async function migrateLocalIfNeeded(){
   }catch(e){ console.error('Migration locale :', e); }
 }
 
-/* Clé API Pollinations : stockée dans Firestore (settings/pollinations), lisible par les comptes ayant le droit IA. */
+/* Clé API Pollinations — deux niveaux, tous deux dans Firestore :
+   1) clé PERSONNELLE du compte : apiKeys/{uid} (saisie par l'admin, seul ce compte et les admins peuvent la lire) ;
+   2) clé par défaut (secours) : settings/pollinations, utilisée seulement si le compte n'a pas de clé perso.
+   Dans les deux cas, il faut le droit « Recettes & photos IA ». */
+const POLL_KEY_RE = /^(sk|pk)_/;
 async function loadPollKey(){
-  pollKeyCache = '';
+  pollKeyCache = ''; pollKeySource = '';
   if(!can('ai')) return;
   try{
+    const mine = await FB.getDoc(FB.doc(FB.db, 'apiKeys', AUTH.user.uid));
+    if(mine.exists() && mine.data().key){ pollKeyCache = mine.data().key; pollKeySource = 'perso'; return; }
+  }catch(e){ console.error('Clé API personnelle :', e); }
+  try{
     const s = await FB.getDoc(FB.doc(FB.db, 'settings', 'pollinations'));
-    if(s.exists()) pollKeyCache = s.data().key || '';
-  }catch(e){ console.error('Clé API :', e); }
+    if(s.exists() && s.data().key){ pollKeyCache = s.data().key; pollKeySource = 'defaut'; }
+  }catch(e){ console.error('Clé API par défaut :', e); }
 }
 
 async function enterApp(){
@@ -4696,8 +4705,8 @@ function renderAdmin(){
     c.innerHTML = `
       <div class="sheet">
         <div class="sheet-tab" style="background:var(--g-bras); color:#fff;">Réglages</div>
-        <h2>Clé API Pollinations</h2>
-        <p class="sub">Utilisée pour générer les recettes et les photos par IA. Elle est enregistrée une seule fois dans Firestore, puis chargée automatiquement pour les comptes qui ont le droit « Recettes &amp; photos IA ». Elle est donc visible dans le navigateur de ces comptes (nécessaire pour appeler Pollinations).</p>
+        <h2>Clé API par défaut (secours)</h2>
+        <p class="sub">Les clés API se gèrent désormais <b>compte par compte</b> dans le tableau « Gestion des utilisateurs » ci-dessous (colonne « Clé API IA »). Cette clé par défaut ne sert que pour les comptes qui n'ont pas de clé personnelle ; supprime-la pour que chaque compte n'utilise que sa propre clé. Les clés sont visibles dans le navigateur du compte concerné (nécessaire pour appeler Pollinations).</p>
         <div id="adminKeyStatus" class="admin-ro">Chargement…</div>
         <div class="field" style="max-width:460px;margin-top:10px;"><label for="s_pollkey">Nouvelle clé API</label><input type="password" id="s_pollkey" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="sk_… ou pk_…"></div>
         <div class="macro-editor-actions">
@@ -4740,9 +4749,8 @@ async function adminKeyRefresh(){
   try{
     const s = await FB.getDoc(FB.doc(FB.db, 'settings', 'pollinations'));
     const d = s.exists() ? s.data() : null;
-    pollKeyCache = (d && d.key) || '';
     const when = d && tsMs(d.updatedAt) ? ' le ' + new Date(tsMs(d.updatedAt)).toLocaleDateString('fr-FR') : '';
-    el.innerHTML = d && d.key ? `✅ Clé enregistrée (…${escapeHtml(String(d.key).slice(-4))})${when}.` : '⚠️ Aucune clé enregistrée : la génération IA est désactivée pour tous.';
+    el.innerHTML = d && d.key ? `✅ Clé par défaut enregistrée (…${escapeHtml(String(d.key).slice(-4))})${when}.` : 'Aucune clé par défaut : seuls les comptes avec une clé personnelle peuvent utiliser l\'IA.';
   }catch(e){ console.error(e); el.textContent = '⚠️ Lecture impossible : ' + authMsg(e); }
 }
 
@@ -4751,14 +4759,65 @@ async function adminKeySave(clear){
   const k = clear ? '' : inp.value.trim();
   if(!clear){
     if(!k){ showToast('Colle ta clé API dans le champ.'); return; }
-    if(!/^(sk|pk)_/.test(k)){ showToast('Une clé Pollinations commence par sk_ ou pk_.'); return; }
-  } else if(!confirm('Supprimer la clé API ? La génération IA sera désactivée pour tous.')) return;
+    if(!POLL_KEY_RE.test(k)){ showToast('Une clé Pollinations commence par sk_ ou pk_.'); return; }
+  } else if(!confirm('Supprimer la clé par défaut ? Les comptes sans clé personnelle perdront l\'accès à la génération IA.')) return;
   try{
     await FB.setDoc(FB.doc(FB.db, 'settings', 'pollinations'), {key: k, updatedAt: FB.serverTimestamp(), updatedBy: AUTH.user.uid});
     inp.value = '';
-    showToast(clear ? 'Clé supprimée' : 'Clé enregistrée dans Firestore 🔑');
+    showToast(clear ? 'Clé par défaut supprimée' : 'Clé par défaut enregistrée dans Firestore 🔑');
   }catch(err){ console.error(err); showToast('Échec : ' + authMsg(err)); }
   adminKeyRefresh();
+  await loadPollKey();
+  await adminRefreshUsers();
+}
+
+/* ---- clés API personnelles (apiKeys/{uid}) ---- */
+async function adminLoadKeys(){
+  const map = {};
+  try{
+    const s = await FB.getDocs(FB.collection(FB.db, 'apiKeys'));
+    s.docs.forEach(d=> { map[d.id] = d.data(); });
+  }catch(e){ console.error('Lecture des clés :', e); map.__error = authMsg(e); }
+  return map;
+}
+function adminKeyCellHtml(u, keys){
+  const adm = u.role === 'admin', perms = u.perms || {};
+  if(!(adm || perms.ai)){
+    const has = keys[u.uid] && keys[u.uid].key;
+    return `<small>Coche « Recettes &amp; photos IA » pour saisir une clé.</small>${has ? '<small>Une clé est conservée mais inactive.</small>' : ''}`;
+  }
+  const k = keys[u.uid], has = k && k.key;
+  const when = has && tsMs(k.updatedAt) ? ' · ' + new Date(tsMs(k.updatedAt)).toLocaleDateString('fr-FR') : '';
+  const status = has
+    ? `<div class="admin-ro" style="margin:0 0 6px;font-style:normal;">✅ Clé perso (…${escapeHtml(String(k.key).slice(-4))})${when}</div>`
+    : `<div class="admin-ro" style="margin:0 0 6px;font-style:normal;">⚠️ Aucune clé perso — clé par défaut utilisée si elle existe</div>`;
+  return `${status}
+    <input type="password" data-admin-keyinput="${u.uid}" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${has ? 'Nouvelle clé (sk_… ou pk_…)' : 'sk_… ou pk_…'}" style="width:100%;min-width:150px;margin-bottom:6px;">
+    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+      <button type="button" class="btn btn-accent btn-sm" data-admin-userkeysave="${u.uid}">${has ? 'Modifier' : 'Enregistrer'}</button>
+      ${has ? `<button type="button" class="btn btn-ghost btn-sm" style="color:var(--ink);border-color:#D9D2BC;" data-admin-userkeyclear="${u.uid}">Supprimer</button>` : ''}
+    </div>`;
+}
+async function adminUserKeySave(uid, clear){
+  const u = adminState.users.find(x=> x.uid === uid);
+  const name = u ? (u.displayName || u.email || 'ce compte') : 'ce compte';
+  const ref = FB.doc(FB.db, 'apiKeys', uid);
+  try{
+    if(clear){
+      if(!confirm('Supprimer la clé API de ' + name + ' ?')) return;
+      await FB.deleteDoc(ref);
+      showToast('Clé supprimée');
+    } else {
+      const inp = document.querySelector('[data-admin-keyinput="' + uid + '"]');
+      const k = inp ? inp.value.trim() : '';
+      if(!k){ showToast('Colle la clé API dans le champ.'); return; }
+      if(!POLL_KEY_RE.test(k)){ showToast('Une clé Pollinations commence par sk_ ou pk_.'); return; }
+      await FB.setDoc(ref, {key: k, uid, updatedAt: FB.serverTimestamp(), updatedBy: AUTH.user.uid});
+      showToast('Clé enregistrée pour ' + name + ' 🔑');
+    }
+  }catch(err){ console.error(err); showToast('Échec : ' + authMsg(err)); }
+  if(uid === AUTH.user.uid) await loadPollKey();
+  await adminRefreshUsers();
 }
 
 async function adminRefreshUsers(){
@@ -4772,6 +4831,8 @@ async function adminRefreshUsers(){
     return;
   }
   const users = adminState.users;
+  const apiKeys = await adminLoadKeys();
+  const keysErr = apiKeys.__error ? `<div class="warn-box" style="margin-top:8px;">⚠️ Lecture des clés API impossible (${escapeHtml(apiKeys.__error)}). Vérifie que les règles Firestore pour la collection « apiKeys » sont publiées.</div>` : '';
   const pending = users.filter(u=> u.status === 'pending').length;
   const b = $a('adminBadge'); if(b){ b.textContent = pending || ''; b.style.display = pending ? '' : 'none'; }
   const me = AUTH.user.uid;
@@ -4786,13 +4847,15 @@ async function adminRefreshUsers(){
       <td><select data-admin-status="${u.uid}" ${self ? 'disabled' : ''}>${opt('active', 'Actif', u.status)}${opt('pending', 'En attente', u.status)}${opt('disabled', 'Suspendu', u.status)}</select></td>
       <td><select data-admin-role="${u.uid}" ${self ? 'disabled' : ''}>${opt('user', 'Membre', u.role)}${opt('admin', 'Administrateur', u.role)}</select></td>
       <td><div class="perm-grid">${permHtml}</div>${adm ? '<small>Les administrateurs ont tous les droits.</small>' : ''}</td>
+      <td style="min-width:190px;">${adminKeyCellHtml(u, apiKeys)}</td>
       <td><div style="display:flex;flex-direction:column;gap:6px;"><button type="button" class="btn btn-ghost btn-sm" style="color:var(--ink);border-color:#D9D2BC;" data-admin-view="${u.uid}">👁 Voir ses plans</button><button type="button" class="btn btn-ghost btn-sm" style="color:var(--ink);border-color:#D9D2BC;" data-admin-reset="${escapeHtml(u.email || '')}">✉ Réinit. mot de passe</button><button type="button" class="btn btn-danger btn-sm" data-admin-delete="${u.uid}" ${self ? 'disabled title="Tu ne peux pas supprimer ton propre compte"' : ''}>🗑 Supprimer</button></div></td>
     </tr>`;
   }).join('');
   box.innerHTML = `
     <p class="sub" style="margin-bottom:0;">${users.length} compte(s) · <b>${pending}</b> en attente de validation</p>
+    ${keysErr}
     <div class="admin-table-wrap"><table class="admin-table">
-      <thead><tr><th>Compte</th><th>Statut</th><th>Rôle</th><th>Droits d'accès</th><th></th></tr></thead>
+      <thead><tr><th>Compte</th><th>Statut</th><th>Rôle</th><th>Droits d'accès</th><th>Clé API IA</th><th></th></tr></thead>
       <tbody>${rows}</tbody>
     </table></div>`;
 }
@@ -4867,6 +4930,7 @@ async function adminDeleteUser(uid){
       snap.docs.slice(i, i + 400).forEach(d=> batch.delete(FB.doc(FB.db, 'users', uid, 'store', d.id)));
       await batch.commit();
     }
+    try{ await FB.deleteDoc(FB.doc(FB.db, 'apiKeys', uid)); }catch(e){ console.error('Clé API :', e); }
     await FB.deleteDoc(FB.doc(FB.db, 'users', uid));
     if(adminState.viewUid === uid){ adminState.viewUid = null; const v = $a('adminViewer'); if(v) v.innerHTML = ''; }
     showToast('Compte supprimé 🗑');
@@ -4880,6 +4944,10 @@ async function adminDeleteUser(uid){
 async function onAdminClick(e){
   const del = e.target.closest('[data-admin-delete]');
   if(del){ if(!del.disabled) adminDeleteUser(del.dataset.adminDelete); return; }
+  const uks = e.target.closest('[data-admin-userkeysave]');
+  if(uks){ adminUserKeySave(uks.dataset.adminUserkeysave, false); return; }
+  const ukc = e.target.closest('[data-admin-userkeyclear]');
+  if(ukc){ adminUserKeySave(ukc.dataset.adminUserkeyclear, true); return; }
   if(e.target.closest('[data-admin-keysave]')){ adminKeySave(false); return; }
   if(e.target.closest('[data-admin-keyclear]')){ adminKeySave(true); return; }
   if(e.target.closest('[data-admin-genpw]')){ $a('c_pw').value = genPassword(); return; }
