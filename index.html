@@ -587,7 +587,7 @@ tailwind.config = {
       <button class="tab-btn" data-tab="training"><svg class="tab-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12"/></svg><span class="max-[820px]:hidden">Plan entraînement</span><span class="min-[821px]:hidden">Entraînement</span></button>
       <button class="tab-btn" data-tab="perf"><svg class="tab-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4Z"/><path d="M7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3"/></svg><span class="max-[820px]:hidden">Performances</span><span class="min-[821px]:hidden">Perfs</span></button>
       <button class="tab-btn" data-tab="suivi"><svg class="tab-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"/><path d="m7 15 4-5 3 3 5-7"/></svg><span>Suivi</span></button>
-      <button class="tab-btn" data-tab="admin" id="tabAdminBtn" style="display:none;"><svg class="tab-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 4.5 3.2 8 8 9 4.8-1 8-4.5 8-9V6l-8-3Z"/><path d="m9 12 2 2 4-4"/></svg><span>Admin</span><span class="tab-badge" id="adminBadge" style="display:none;"></span></button>
+      <button class="tab-btn" data-tab="admin" id="tabAdminBtn" style="display:none;"><svg class="tab-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 4.5 3.2 8 8 9 4.8-1 8-4.5 8-9V6l-8-3Z"/><path d="m9 12 2 2 4-4"/></svg><span>Réglages</span><span class="tab-badge" id="adminBadge" style="display:none;"></span></button>
     </nav>
 
     <main class="content">
@@ -1668,10 +1668,11 @@ const POLL_MODEL = 'flux';
 const recipeImgCache = new Map();   // titre de recette -> data-URL JPEG
 let recipeImgBusy = false;
 
-function pollKeyName(){ return POLL_KEY_STORE + (FS.uid ? '_' + FS.uid : ''); }
-function getPollKey(){ if(typeof can === 'function' && !can('ai')) return ''; try{ return localStorage.getItem(pollKeyName()) || ''; }catch(e){ return ''; } }
+/* La clé API Pollinations est enregistrée dans Firestore (settings/pollinations) par l'admin et chargée à la connexion. */
+let pollKeyCache = '';
+function getPollKey(){ return (typeof can === 'function' && can('ai')) ? pollKeyCache : ''; }
 function setPollKey(k){
-  try{ if(k) localStorage.setItem(pollKeyName(), k); else localStorage.removeItem(pollKeyName()); return true; }
+  try{ if(k) localStorage.setItem(POLL_KEY_STORE, k); else localStorage.removeItem(POLL_KEY_STORE); return true; }
   catch(e){ return false; }
 }
 function recipeSlug(t){
@@ -1732,7 +1733,7 @@ function paintRecipeSlot(slot, url, state){
   } else if(getPollKey()){
     slot.innerHTML = '<button type="button" class="btn btn-ghost btn-sm" data-act="gen" style="border-color:#D9D2BC; color:var(--ink);">🎨 Générer l\'image</button>';
   } else {
-    slot.innerHTML = '<span class="recipe-img-hint">Ajoute ta clé Pollinations (section ci-dessous) pour illustrer cette recette.</span>';
+    slot.innerHTML = '<span class="recipe-img-hint">Illustration IA indisponible : clé API non configurée par l&#39;administrateur.</span>';
   }
 }
 
@@ -1778,7 +1779,7 @@ async function hydrateRecipeImages(){
 
 async function generateAllRecipeImages(){
   if(recipeImgBusy) return;
-  if(!getPollKey()){ showToast('Enregistre d\'abord ta clé Pollinations.'); return; }
+  if(!getPollKey()){ showToast('Clé API non configurée par l\'administrateur.'); return; }
   const slots = Array.from(document.querySelectorAll('.recipe-img[data-recipe]')).filter(s=> !recipeImgCache.has(s.dataset.recipe));
   if(!slots.length){ showToast('Toutes les images sont déjà générées ✅'); return; }
   recipeImgBusy = true;
@@ -2069,7 +2070,7 @@ async function handleNewSuggestions(profile, plan){
   await saveProfile(profile);
   state.profile = profile;
   renderNutrition(profile, plan);
-  showToast(can('ai') ? 'Ajoute ta clé Pollinations pour des recettes générées par IA.' : 'Nouvelles recettes proposées.');
+  showToast('Nouvelles recettes proposées (clé API IA non configurée : base de recettes intégrée).');
 }
 
 function aiRecipeCardHtml(m){
@@ -2116,7 +2117,7 @@ function bindNutritionAi(profile, plan){
         await runAiSuggestions(profile, plan);
       } else {
         renderNutrition(profile, plan);
-        showToast(`Plan en ${n} repas appliqué (ajoute ta clé Pollinations pour des recettes IA).`);
+        showToast(`Plan en ${n} repas appliqué (clé API IA non configurée : recettes de la base intégrée).`);
       }
     });
   }
@@ -2283,12 +2284,9 @@ function renderNutrition(profile, plan){
 
       <div class="macro-editor" id="imgSettings">
         <h3 class="meal-grid-title" style="margin-bottom:2px;">IA : recettes &amp; photos (Pollinations.ai)</h3>
-        <p class="sub" style="margin-top:2px;">Colle ta clé API Pollinations : elle sert à générer les recettes et les photos, et reste uniquement dans ce navigateur (jamais dans le fichier ni dans l'export). Les photos générées sont conservées et intégrées à l'export PDF.</p>
-        <div class="field"><label for="pollKeyInput">Clé API</label><input type="password" id="pollKeyInput" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${getPollKey() ? 'Clé enregistrée (…' + escapeHtml(getPollKey().slice(-4)) + ')' : 'sk_… ou pk_…'}"></div>
-        <div class="macro-editor-actions">
-          <button type="button" class="btn btn-accent" id="pollKeySave">Enregistrer la clé</button>
-          <button type="button" class="btn btn-ghost btn-sm" id="pollKeyClear" style="border-color:#D9D2BC; color:var(--ink);">Supprimer la clé</button>
-        </div>
+        <p class="sub" style="margin-top:2px;">${getPollKey()
+          ? 'La clé API est configurée par l\'administrateur : les recettes et les photos sont générées par IA. Les photos sont conservées et intégrées à l\'export PDF.'
+          : (isAdmin() ? 'Aucune clé API enregistrée : ajoute-la dans l\'onglet « Réglages ».' : 'Aucune clé API n\'est encore configurée par l\'administrateur : le plan utilise les recettes de la base intégrée.')}</p>
         <p class="img-status" id="imgStatus"></p>
       </div>
 
@@ -4552,6 +4550,16 @@ async function migrateLocalIfNeeded(){
   }catch(e){ console.error('Migration locale :', e); }
 }
 
+/* Clé API Pollinations : stockée dans Firestore (settings/pollinations), lisible par les comptes ayant le droit IA. */
+async function loadPollKey(){
+  pollKeyCache = '';
+  if(!can('ai')) return;
+  try{
+    const s = await FB.getDoc(FB.doc(FB.db, 'settings', 'pollinations'));
+    if(s.exists()) pollKeyCache = s.data().key || '';
+  }catch(e){ console.error('Clé API :', e); }
+}
+
 async function enterApp(){
   FS.uid = AUTH.user.uid;
   $a('authScreen').style.display = 'none';
@@ -4559,6 +4567,7 @@ async function enterApp(){
   activateTab('profil');
   applyPermissions();
   await migrateLocalIfNeeded();
+  await loadPollKey();
   await init();
   if(isAdmin()) adminUpdateBadge();
 }
@@ -4604,6 +4613,17 @@ function renderAdmin(){
   if(!$a('adminUsers')){
     c.innerHTML = `
       <div class="sheet">
+        <div class="sheet-tab" style="background:var(--g-bras); color:#fff;">Réglages</div>
+        <h2>Clé API Pollinations</h2>
+        <p class="sub">Utilisée pour générer les recettes et les photos par IA. Elle est enregistrée une seule fois dans Firestore, puis chargée automatiquement pour les comptes qui ont le droit « Recettes &amp; photos IA ». Elle est donc visible dans le navigateur de ces comptes (nécessaire pour appeler Pollinations).</p>
+        <div id="adminKeyStatus" class="admin-ro">Chargement…</div>
+        <div class="field" style="max-width:460px;margin-top:10px;"><label for="s_pollkey">Nouvelle clé API</label><input type="password" id="s_pollkey" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="sk_… ou pk_…"></div>
+        <div class="macro-editor-actions">
+          <button type="button" class="btn btn-accent" data-admin-keysave>Enregistrer la clé</button>
+          <button type="button" class="btn btn-ghost btn-sm" style="color:var(--ink);border-color:#D9D2BC;" data-admin-keyclear>Supprimer la clé</button>
+        </div>
+      </div>
+      <div class="sheet">
         <div class="sheet-tab" style="background:var(--accent);">Nouveau compte</div>
         <h2>Créer un compte</h2>
         <p class="sub">Les comptes ne peuvent être créés que depuis cet écran. Communique ensuite l'email et le mot de passe à la personne (elle pourra le changer via « Mot de passe oublié »).</p>
@@ -4622,13 +4642,41 @@ function renderAdmin(){
       </div>
       <div class="sheet">
         <div class="sheet-tab" style="background:var(--g-jambes); color:#fff;">Admin</div>
-        <h2>Comptes &amp; droits d'accès</h2>
+        <h2>Gestion des utilisateurs</h2>
         <p class="sub">Active ou désactive un compte, choisis les fonctionnalités accessibles à chacun et consulte les plans créés par les utilisateurs.</p>
         <div id="adminUsers"><p class="empty-note">Chargement…</p></div>
       </div>
       <div id="adminViewer"></div>`;
   }
   adminRefreshUsers();
+  adminKeyRefresh();
+}
+
+async function adminKeyRefresh(){
+  const el = $a('adminKeyStatus');
+  if(!el) return;
+  try{
+    const s = await FB.getDoc(FB.doc(FB.db, 'settings', 'pollinations'));
+    const d = s.exists() ? s.data() : null;
+    pollKeyCache = (d && d.key) || '';
+    const when = d && tsMs(d.updatedAt) ? ' le ' + new Date(tsMs(d.updatedAt)).toLocaleDateString('fr-FR') : '';
+    el.innerHTML = d && d.key ? `✅ Clé enregistrée (…${escapeHtml(String(d.key).slice(-4))})${when}.` : '⚠️ Aucune clé enregistrée : la génération IA est désactivée pour tous.';
+  }catch(e){ console.error(e); el.textContent = '⚠️ Lecture impossible : ' + authMsg(e); }
+}
+
+async function adminKeySave(clear){
+  const inp = $a('s_pollkey');
+  const k = clear ? '' : inp.value.trim();
+  if(!clear){
+    if(!k){ showToast('Colle ta clé API dans le champ.'); return; }
+    if(!/^(sk|pk)_/.test(k)){ showToast('Une clé Pollinations commence par sk_ ou pk_.'); return; }
+  } else if(!confirm('Supprimer la clé API ? La génération IA sera désactivée pour tous.')) return;
+  try{
+    await FB.setDoc(FB.doc(FB.db, 'settings', 'pollinations'), {key: k, updatedAt: FB.serverTimestamp(), updatedBy: AUTH.user.uid});
+    inp.value = '';
+    showToast(clear ? 'Clé supprimée' : 'Clé enregistrée dans Firestore 🔑');
+  }catch(err){ console.error(err); showToast('Échec : ' + authMsg(err)); }
+  adminKeyRefresh();
 }
 
 async function adminRefreshUsers(){
@@ -4726,6 +4774,8 @@ function genPassword(){
 }
 
 async function onAdminClick(e){
+  if(e.target.closest('[data-admin-keysave]')){ adminKeySave(false); return; }
+  if(e.target.closest('[data-admin-keyclear]')){ adminKeySave(true); return; }
   if(e.target.closest('[data-admin-genpw]')){ $a('c_pw').value = genPassword(); return; }
   const rs = e.target.closest('[data-admin-reset]');
   if(rs){
