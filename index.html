@@ -476,10 +476,89 @@ tailwind.config = {
 @media (prefers-reduced-motion:reduce){
   .ff-spinner{animation-duration:2.4s;} .ff-step.active .ff-dot{animation:none;} .ff-loader.show{animation:none;}
 }
+
+/* ---------- authentification & admin ---------- */
+.auth-screen{
+  position:fixed; inset:0; z-index:200; display:flex; align-items:center; justify-content:center;
+  padding:calc(20px + env(safe-area-inset-top)) 20px calc(20px + env(safe-area-inset-bottom));
+  overflow-y:auto;
+  background:
+    radial-gradient(ellipse at 8% -10%, rgba(242,196,56,0.14), transparent 45%),
+    radial-gradient(ellipse at 100% 100%, rgba(76,143,176,0.12), transparent 45%),
+    #1B2321;
+}
+.auth-card{
+  width:100%; max-width:420px; background:var(--paper); color:var(--ink);
+  border-radius:18px; padding:26px 24px 22px; box-shadow:0 24px 60px rgba(0,0,0,.55);
+  margin:auto;
+}
+.auth-brand{display:flex; align-items:center; gap:14px; margin-bottom:18px;}
+.auth-brand .brand-mark{flex:none;}
+.auth-brand h1{margin:0; font-family:var(--font-display); text-transform:uppercase; letter-spacing:.14em; font-size:21px; line-height:1;}
+.auth-brand p{margin:6px 0 0; color:var(--ink-dim); font-size:12.5px; line-height:1.4;}
+.auth-view{display:block;}
+.auth-view[data-loading]{display:flex; flex-direction:column; align-items:center; gap:14px; padding:22px 0; color:var(--ink-dim); font-weight:600; font-size:14px;}
+.auth-tabs{display:flex; gap:6px; background:var(--paper-alt); border-radius:12px; padding:4px; margin-bottom:16px;}
+.auth-tabs button{
+  flex:1; min-height:40px; border:0; border-radius:9px; background:transparent; color:var(--ink-dim);
+  font-weight:700; font-size:14px;
+}
+.auth-tabs button.active{background:var(--accent); color:var(--accent-ink); box-shadow:0 2px 6px rgba(0,0,0,.15);}
+#authForm{display:flex; flex-direction:column; gap:12px;}
+.auth-error{display:none; padding:10px 12px; border-radius:9px; font-size:13px; line-height:1.45; background:rgba(217,88,63,0.12); border:1px dashed #B25A44; color:#7A3A28;}
+.auth-error.show{display:block;}
+.auth-ok{display:none; padding:10px 12px; border-radius:9px; font-size:13px; line-height:1.45; background:rgba(92,139,110,0.15); border:1px dashed #5C8B6E; color:#33513E;}
+.auth-ok.show{display:block;}
+.auth-link{background:none; border:0; color:var(--fat); font-size:13px; font-weight:600; text-decoration:underline; min-height:32px; padding:0;}
+.auth-info h2{margin:0 0 8px; font-family:var(--font-display); text-transform:uppercase; letter-spacing:.04em; font-size:19px;}
+.auth-info p{margin:0 0 16px; font-size:14px; line-height:1.55; color:var(--ink);}
+.auth-actions{display:flex; flex-wrap:wrap; gap:8px;}
+.auth-actions .btn-ghost{color:var(--ink); border-color:#D9D2BC;}
+
+.user-chip{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+.user-chip .uname{font-size:13.5px; font-weight:600; max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.role-badge{
+  display:inline-block; padding:2px 9px; border-radius:999px; font-size:10.5px; font-weight:700;
+  text-transform:uppercase; letter-spacing:.08em; background:rgba(255,255,255,.12); color:var(--chalk);
+}
+.role-badge.admin{background:var(--accent); color:var(--accent-ink);}
+.tab-badge{
+  display:inline-flex; align-items:center; justify-content:center; min-width:18px; height:18px; padding:0 5px;
+  border-radius:999px; background:var(--protein); color:#fff; font-size:10.5px; font-weight:700; margin-left:4px;
+}
+@media (max-width:820px){ .user-chip{width:100%; justify-content:space-between;} }
+
+.admin-table-wrap{overflow-x:auto; margin-top:10px; border:1px solid #DED6BE; border-radius:10px; background:#fff;}
+.admin-table{width:100%; border-collapse:collapse; font-size:13px; min-width:760px;}
+.admin-table th{text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.5px; color:var(--ink-dim); padding:10px 10px; border-bottom:1px solid #DED6BE; background:var(--paper-alt);}
+.admin-table td{padding:10px; border-bottom:1px dashed #DED6BE; vertical-align:top;}
+.admin-table tr:last-child td{border-bottom:none;}
+.admin-table tr.pending td{background:rgba(227,167,59,0.12);}
+.admin-table small{color:var(--ink-dim); display:block; margin-top:2px;}
+.admin-table select{
+  min-height:36px; padding:4px 24px 4px 8px; font-size:13px; border:1.5px solid #D9D2BC; border-radius:8px; background-color:#fff; color:var(--ink);
+  background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6"><path d="M0 0l5 6 5-6z" fill="%236E7568"/></svg>');
+  background-repeat:no-repeat; background-position:right 8px center;
+}
+.perm-grid{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:4px 12px;}
+.perm-chk{display:flex; align-items:center; gap:6px; font-size:12px; cursor:pointer; white-space:nowrap;}
+.perm-chk input{width:16px; height:16px; min-height:0; accent-color:#B8901A; -webkit-appearance:checkbox; appearance:auto; border-radius:3px;}
+.perm-chk input:disabled{opacity:.5;}
+.subtabs{display:flex; flex-wrap:wrap; gap:6px; margin:12px 0 4px;}
+.subtabs button{
+  min-height:38px; padding:6px 14px; border-radius:999px; border:1.5px solid #D9D2BC; background:#fff; color:var(--ink-dim);
+  font-weight:700; font-size:13px;
+}
+.subtabs button.active{background:var(--accent); border-color:var(--accent); color:var(--accent-ink);}
+.admin-bar{display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end; margin-top:6px;}
+.admin-bar .field{min-width:220px;}
+.admin-ro{margin-top:4px; font-size:12px; color:var(--ink-dim); font-style:italic;}
+.admin-meal .recipe-card{margin-top:6px;}
+.admin-meal details ul, .admin-meal details ol{margin:0; padding-left:18px; font-size:12.5px; line-height:1.6;}
 </style>
 </head>
 <body>
-<div id="app">
+<div id="app" style="display:none;">
 
   <div class="topbar">
     <div class="brand">
@@ -494,6 +573,11 @@ tailwind.config = {
       <button class="btn btn-ghost btn-sm" id="newProfileBtn">+ Nouveau profil</button>
       <button class="btn btn-danger btn-sm" id="deleteProfileBtn" style="display:none;">Supprimer</button>
     </div>
+    <div class="user-chip" id="userChip" style="display:none;">
+      <span class="uname" id="userChipName"></span>
+      <span class="role-badge" id="userChipRole"></span>
+      <button class="btn btn-ghost btn-sm" id="logoutBtn" type="button">Déconnexion</button>
+    </div>
   </div>
 
   <div class="layout">
@@ -503,6 +587,7 @@ tailwind.config = {
       <button class="tab-btn" data-tab="training"><svg class="tab-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12"/></svg><span class="max-[820px]:hidden">Plan entraînement</span><span class="min-[821px]:hidden">Entraînement</span></button>
       <button class="tab-btn" data-tab="perf"><svg class="tab-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4Z"/><path d="M7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3"/></svg><span class="max-[820px]:hidden">Performances</span><span class="min-[821px]:hidden">Perfs</span></button>
       <button class="tab-btn" data-tab="suivi"><svg class="tab-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"/><path d="m7 15 4-5 3 3 5-7"/></svg><span>Suivi</span></button>
+      <button class="tab-btn" data-tab="admin" id="tabAdminBtn" style="display:none;"><svg class="tab-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 4.5 3.2 8 8 9 4.8-1 8-4.5 8-9V6l-8-3Z"/><path d="m9 12 2 2 4-4"/></svg><span>Admin</span><span class="tab-badge" id="adminBadge" style="display:none;"></span></button>
     </nav>
 
     <main class="content">
@@ -656,6 +741,11 @@ tailwind.config = {
         </div>
       </section>
 
+      <!-- ===== ADMIN ===== -->
+      <section id="tab-admin" class="tab-panel">
+        <div id="adminContent"></div>
+      </section>
+
     </main>
   </div>
 
@@ -680,86 +770,108 @@ tailwind.config = {
   </div>
 </div>
 
+<div class="auth-screen" id="authScreen">
+  <div class="auth-card">
+    <div class="auth-brand">
+      <div class="brand-mark">F&amp;F</div>
+      <div><h1>Form &amp; Fuel</h1><p>Ton carnet de coaching — connecte-toi pour continuer</p></div>
+    </div>
+
+    <div class="auth-view" id="authLoading" data-loading style="display:flex;">
+      <div class="ff-spinner" aria-hidden="true"></div>
+      <span id="authLoadingTxt">Chargement…</span>
+    </div>
+
+    <div class="auth-view" id="authFormView" style="display:none;">
+      <div class="auth-tabs">
+        <button type="button" data-auth-mode="login" class="active">Connexion</button>
+        <button type="button" data-auth-mode="signup">Créer un compte</button>
+      </div>
+      <form id="authForm" novalidate>
+        <div class="field" id="authNameWrap" style="display:none;"><label for="a_name">Prénom</label><input type="text" id="a_name" autocomplete="given-name" placeholder="Ex : Camille"></div>
+        <div class="field"><label for="a_email">Email</label><input type="email" id="a_email" autocomplete="email" inputmode="email" placeholder="toi@exemple.com"></div>
+        <div class="field"><label for="a_pw">Mot de passe</label><input type="password" id="a_pw" autocomplete="current-password" placeholder="6 caractères minimum"></div>
+        <div class="auth-error" id="authError" role="alert"></div>
+        <div class="auth-ok" id="authOk"></div>
+        <button type="submit" class="btn btn-accent" id="authSubmit">Se connecter</button>
+        <button type="button" class="auth-link" id="authForgot">Mot de passe oublié ?</button>
+      </form>
+    </div>
+
+    <div class="auth-view auth-info" id="authInfoView" style="display:none;">
+      <h2 id="authInfoTitle"></h2>
+      <p id="authInfoTxt"></p>
+      <div class="auth-actions">
+        <button type="button" class="btn btn-accent" id="authRecheck">Vérifier à nouveau</button>
+        <button type="button" class="btn btn-ghost" id="authLogout2">Se déconnecter</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
 /* =========================================================================
-   STORAGE LAYER — window.storage (Claude) avec repli automatique sur
-   localStorage (utilisation en fichier autonome hors Claude.ai)
+   STORAGE LAYER — Firestore : users/{uid}/store/{clé}  (valeur JSON en texte)
+   Les photos de recettes (recimg:*) restent en local sur l'appareil.
 ========================================================================= */
-const LS_NS = (shared)=> 'formfuel_' + (shared ? 'shared_' : 'priv_');
+const FS = {uid:null};
+const isLocalKey = k => String(k).indexOf('recimg:') === 0;
+const localKeyName = k => 'formfuel_u_' + FS.uid + '_' + k;
+const storeRef = (uid, key)=> FB.doc(FB.db, 'users', uid, 'store', key);
+function fbReady(){ return !!(window.FB && FS.uid); }
 
-function cloudAvailable(){
-  return typeof window !== 'undefined' && !!window.storage
-    && typeof window.storage.get === 'function';
-}
-
-async function storageGet(key, shared){
-  if(cloudAvailable()){
-    try{
-      const r = await window.storage.get(key, !!shared);
-      if(r) return r.value;
-    }catch(e){ /* on retente en local ci-dessous */ }
+async function storageGet(key){
+  if(isLocalKey(key)){
+    try{ return localStorage.getItem(localKeyName(key)); }catch(e){ return null; }
   }
+  if(!fbReady()) return null;
   try{
-    return localStorage.getItem(LS_NS(shared) + key);
-  }catch(e){ return null; }
+    const s = await FB.getDoc(storeRef(FS.uid, key));
+    return s.exists() ? s.data().value : null;
+  }catch(e){ console.error('Firestore get', key, e); return null; }
 }
 
-async function storageSet(key, value, shared){
-  let ok = false;
-  if(cloudAvailable()){
-    try{
-      const r = await window.storage.set(key, value, !!shared);
-      ok = !!r;
-    }catch(e){ ok = false; }
+async function storageSet(key, value){
+  if(isLocalKey(key)){
+    try{ localStorage.setItem(localKeyName(key), value); return true; }catch(e){ return false; }
   }
+  if(!fbReady()) return false;
   try{
-    localStorage.setItem(LS_NS(shared) + key, value);
-    ok = true;
-  }catch(e){ /* localStorage indisponible aussi : on garde ok tel quel */ }
-  return ok;
+    await FB.setDoc(storeRef(FS.uid, key), {value: String(value), updatedAt: FB.serverTimestamp()});
+    return true;
+  }catch(e){ console.error('Firestore set', key, e); return false; }
 }
 
-async function storageDelete(key, shared){
-  if(cloudAvailable()){
-    try{ await window.storage.delete(key, !!shared); }catch(e){}
+async function storageDelete(key){
+  if(isLocalKey(key)){
+    try{ localStorage.removeItem(localKeyName(key)); }catch(e){}
+    return true;
   }
-  try{ localStorage.removeItem(LS_NS(shared) + key); }catch(e){}
-  return true;
+  if(!fbReady()) return false;
+  try{ await FB.deleteDoc(storeRef(FS.uid, key)); return true; }
+  catch(e){ console.error('Firestore delete', key, e); return false; }
 }
 
-async function storageList(prefix, shared){
-  const keys = new Set();
-  if(cloudAvailable()){
-    try{
-      const r = await window.storage.list(prefix, !!shared);
-      if(r && r.keys) r.keys.forEach(k=> keys.add(k));
-    }catch(e){}
-  }
-  try{
-    const ns = LS_NS(shared);
-    const fullPrefix = ns + (prefix || '');
-    for(let i=0; i<localStorage.length; i++){
-      const k = localStorage.key(i);
-      if(k && k.indexOf(fullPrefix) === 0){
-        keys.add(k.slice(ns.length));
-      }
-    }
-  }catch(e){}
-  return Array.from(keys);
+/* Liste les documents d'un utilisateur dont l'identifiant commence par `prefix`. */
+async function fsListValues(uid, prefix){
+  const col = FB.collection(FB.db, 'users', uid, 'store');
+  const q = FB.query(col, FB.where(FB.documentId(), '>=', prefix), FB.where(FB.documentId(), '<', prefix + ''));
+  const snap = await FB.getDocs(q);
+  return snap.docs.map(d=> ({key: d.id, value: d.data().value}));
 }
 
 async function loadAllProfiles(){
-  const keys = await storageList('profile:', false);
+  let rows = [];
+  try{ rows = await fsListValues(FS.uid, 'profile:'); }
+  catch(e){ console.error(e); showToast('Lecture des profils impossible (droits ou réseau).'); }
   const out = [];
-  for(const k of keys){
-    const v = await storageGet(k, false);
-    if(v){ try{ out.push(JSON.parse(v)); }catch(e){} }
-  }
+  rows.forEach(r=>{ try{ out.push(JSON.parse(r.value)); }catch(e){} });
   out.sort((a,b)=> (b.createdAt||0) - (a.createdAt||0));
   return out;
 }
+
 async function saveProfile(profile){
   return storageSet('profile:' + profile.id, JSON.stringify(profile), false);
 }
@@ -1555,9 +1667,10 @@ const POLL_MODEL = 'flux';
 const recipeImgCache = new Map();   // titre de recette -> data-URL JPEG
 let recipeImgBusy = false;
 
-function getPollKey(){ try{ return localStorage.getItem(POLL_KEY_STORE) || ''; }catch(e){ return ''; } }
+function pollKeyName(){ return POLL_KEY_STORE + (FS.uid ? '_' + FS.uid : ''); }
+function getPollKey(){ if(typeof can === 'function' && !can('ai')) return ''; try{ return localStorage.getItem(pollKeyName()) || ''; }catch(e){ return ''; } }
 function setPollKey(k){
-  try{ if(k) localStorage.setItem(POLL_KEY_STORE, k); else localStorage.removeItem(POLL_KEY_STORE); return true; }
+  try{ if(k) localStorage.setItem(pollKeyName(), k); else localStorage.removeItem(pollKeyName()); return true; }
   catch(e){ return false; }
 }
 function recipeSlug(t){
@@ -1951,8 +2064,11 @@ async function handleNewSuggestions(profile, plan){
   // Sans clé : on retombe sur la base de recettes intégrée (non IA).
   if(profile.aiPlan){ delete profile.aiPlan; await saveProfile(profile); state.profile = profile; }
   recipeSeed += 1;
+  profile.recipeSeed = recipeSeed;
+  await saveProfile(profile);
+  state.profile = profile;
   renderNutrition(profile, plan);
-  showToast('Ajoute ta clé Pollinations pour des recettes générées par IA.');
+  showToast(can('ai') ? 'Ajoute ta clé Pollinations pour des recettes générées par IA.' : 'Nouvelles recettes proposées.');
 }
 
 function aiRecipeCardHtml(m){
@@ -2188,6 +2304,7 @@ function renderNutrition(profile, plan){
     </div>
   `;
 
+  if(!can('ai')){ const s = document.getElementById('imgSettings'); if(s) s.remove(); const g = document.getElementById('genAllImgBtn'); if(g) g.remove(); }
   const shuffleBtn = document.getElementById('shuffleRecipesBtn');
   if(shuffleBtn){
     shuffleBtn.addEventListener('click', ()=> handleNewSuggestions(profile, plan));
@@ -2970,7 +3087,7 @@ function renderTraining(profile){
           <div class="exo-current-name">${e.name}</div>
           <select class="exo-edit-select" data-field="exo" data-day-index="${dayIdx}" data-exo-index="${e.exoIndex}" data-default="">${exoOptions}</select>
           <div class="exo-desc">${e.desc}</div>
-          ${rmBoxHtml(e)}
+          ${can('perf') ? rmBoxHtml(e) : ''}
           ${e.alt ? `<div class="exo-alt">${altLabel(e.typeId).icon} <b>${altLabel(e.typeId).long} :</b> ${e.alt}</div>` : ''}
           ${tag}
         </td>
@@ -3085,6 +3202,8 @@ function renderTraining(profile){
   if(shuffleTrainingBtn){
     shuffleTrainingBtn.addEventListener('click', ()=>{
       trainingSeed += 1;
+      profile.trainingSeed = trainingSeed;
+      saveProfile(profile);
       renderTraining(profile);
     });
   }
@@ -3705,6 +3824,8 @@ async function loadProfileIntoApp(id){
   state.history = await loadHistory(id);
   state.perf = await loadPerf(id);
   state.perfUI = {};
+  recipeSeed = profile.recipeSeed || 0;
+  trainingSeed = profile.trainingSeed || 0;
   fillForm(profile);
   toggleTargetWeightField();
   const plan = calcPlan(profile);
@@ -4103,6 +4224,7 @@ function buildTrainingPrintableHTML(profile){
 }
 
 function handleExportNutritionPdf(){
+  if(!can('exportPdf')){ showToast('L\'export PDF n\'est pas activé pour ton compte.'); return; }
   if(!state.profile){
     showToast('Crée d\'abord un profil pour générer un plan.');
     return;
@@ -4112,6 +4234,7 @@ function handleExportNutritionPdf(){
 }
 
 function handleExportTrainingPdf(){
+  if(!can('exportPdf')){ showToast('L\'export PDF n\'est pas activé pour ton compte.'); return; }
   if(!state.profile){
     showToast('Crée d\'abord un profil pour générer un plan.');
     return;
@@ -4122,7 +4245,10 @@ function handleExportTrainingPdf(){
 /* =========================================================================
    INIT
 ========================================================================= */
+let appBound = false;
 async function init(){
+  if(!appBound){
+  appBound = true;
   initRadioChips();
   initTabs();
   initAllergeneField();
@@ -4170,6 +4296,15 @@ async function init(){
     }
   });
 
+  }
+
+  /* état propre à chaque connexion */
+  clearForm();
+  state.currentId = null; state.profile = null; state.history = []; state.perfUI = {};
+  recipeSeed = 0; trainingSeed = 0;
+  document.getElementById('profilSummary').style.display = 'none';
+  document.getElementById('deleteProfileBtn').style.display = 'none';
+
   await refreshProfileSelect();
   renderNutrition(null, null);
   renderTraining(null);
@@ -4180,10 +4315,6 @@ async function init(){
     document.getElementById('profileSelect').value = profiles[0].id;
     await loadProfileIntoApp(profiles[0].id);
   }
-
-  if(typeof window.storage === 'undefined'){
-    showToast('Mode session : la sauvegarde des profils n\'est active que dans Claude.');
-  }
 }
 
 window.addEventListener('error', (e)=>{
@@ -4191,10 +4322,563 @@ window.addEventListener('error', (e)=>{
   showToast('Un problème est survenu — regarde la console pour le détail.');
 });
 
-init().catch(err=>{
-  console.error('Erreur au démarrage :', err);
-  showToast('L\'application n\'a pas pu démarrer correctement.');
-});
+</script>
+<script>
+/* =========================================================================
+   AUTHENTIFICATION, DROITS D'ACCÈS & ESPACE ADMIN  (Firebase Auth + Firestore)
+   - 1er compte créé = administrateur (voir firestore.rules)
+   - les comptes suivants sont « en attente » jusqu'à validation par l'admin
+   - l'admin règle, pour chaque compte, l'accès aux fonctionnalités
+========================================================================= */
+const PERM_DEFS = [
+  ['nutrition', 'Plan nutrition'],
+  ['training',  'Plan entraînement'],
+  ['perf',      'Performances'],
+  ['suivi',     'Suivi'],
+  ['exportPdf', 'Export PDF'],
+  ['ai',        'Recettes & photos IA']
+];
+const AUTH = {user:null, data:null, pendingName:'', mode:'login'};
+const $a = id => document.getElementById(id);
+const tsMs = t => (t && typeof t.toMillis === 'function') ? t.toMillis() : 0;
+function allPerms(v){ const o = {}; PERM_DEFS.forEach(([k])=> { o[k] = !!v; }); return o; }
+
+window.isAdmin = function(){ return !!(AUTH.data && AUTH.data.role === 'admin' && AUTH.data.status === 'active'); };
+window.can = function(p){
+  if(!AUTH.data || AUTH.data.status !== 'active') return false;
+  if(AUTH.data.role === 'admin') return true;
+  return !!(AUTH.data.perms && AUTH.data.perms[p]);
+};
+
+/* ---------- vues de l'écran d'authentification ---------- */
+function authShow(view){
+  $a('authScreen').style.display = 'flex';
+  $a('app').style.display = 'none';
+  ['authLoading', 'authFormView', 'authInfoView'].forEach(id=>{ $a(id).style.display = (id === view) ? '' : 'none'; });
+  $a('authLoading').style.display = (view === 'authLoading') ? 'flex' : 'none';
+}
+function authLoading(txt){ $a('authLoadingTxt').textContent = txt || 'Chargement…'; authShow('authLoading'); }
+function authMessage(kind, txt){
+  const err = $a('authError'), ok = $a('authOk');
+  err.classList.remove('show'); ok.classList.remove('show');
+  if(!txt) return;
+  const el = kind === 'ok' ? ok : err;
+  el.textContent = txt; el.classList.add('show');
+}
+function authForm(){ authMessage('', ''); $a('a_pw').value = ''; authShow('authFormView'); }
+function authInfo(kind, extra){
+  const T = {
+    pending:  ['Compte en attente de validation', 'Ton compte a bien été créé. Un administrateur doit valider ton accès avant que tu puisses utiliser l\'application. Reviens plus tard ou clique sur « Vérifier à nouveau ».'],
+    disabled: ['Compte suspendu', 'Ton accès a été suspendu par un administrateur.'],
+    error:    ['Oups…', extra || 'Une erreur est survenue.']
+  }[kind];
+  $a('authInfoTitle').textContent = T[0];
+  $a('authInfoTxt').textContent = T[1];
+  $a('authRecheck').style.display = kind === 'disabled' ? 'none' : '';
+  authShow('authInfoView');
+}
+function authMsg(err){
+  const c = err && err.code || '';
+  if(/invalid-credential|wrong-password|user-not-found|invalid-login/.test(c)) return 'Email ou mot de passe incorrect.';
+  if(c === 'auth/email-already-in-use') return 'Un compte existe déjà avec cet email.';
+  if(c === 'auth/weak-password') return 'Mot de passe trop faible (6 caractères minimum).';
+  if(c === 'auth/invalid-email') return 'Adresse email invalide.';
+  if(c === 'auth/too-many-requests') return 'Trop de tentatives. Réessaie dans quelques minutes.';
+  if(c === 'auth/network-request-failed') return 'Problème de réseau. Vérifie ta connexion.';
+  if(c === 'auth/operation-not-allowed') return 'La connexion par email/mot de passe n\'est pas activée dans Firebase Authentication.';
+  if(c === 'permission-denied' || /permission/i.test(err && err.message || '')) return 'Accès refusé par la base de données (règles Firestore non publiées ?).';
+  return (err && err.message) || 'Une erreur est survenue.';
+}
+function setAuthMode(mode){
+  AUTH.mode = mode;
+  document.querySelectorAll('[data-auth-mode]').forEach(b=> b.classList.toggle('active', b.dataset.authMode === mode));
+  $a('authNameWrap').style.display = mode === 'signup' ? '' : 'none';
+  $a('authSubmit').textContent = mode === 'signup' ? 'Créer mon compte' : 'Se connecter';
+  $a('a_pw').autocomplete = mode === 'signup' ? 'new-password' : 'current-password';
+  authMessage('', '');
+}
+
+let authUiBound = false;
+function bindAuthUi(){
+  if(authUiBound) return;
+  authUiBound = true;
+  document.querySelectorAll('[data-auth-mode]').forEach(b=> b.addEventListener('click', ()=> setAuthMode(b.dataset.authMode)));
+  $a('authForm').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    if(!window.FB) return;
+    const email = $a('a_email').value.trim(), pw = $a('a_pw').value, name = $a('a_name').value.trim();
+    const btn = $a('authSubmit');
+    authMessage('', '');
+    btn.disabled = true;
+    try{
+      if(AUTH.mode === 'signup'){
+        if(!name){ authMessage('err', 'Indique ton prénom.'); return; }
+        AUTH.pendingName = name;
+        const cred = await FB.createUserWithEmailAndPassword(FB.auth, email, pw);
+        try{ await FB.updateProfile(cred.user, {displayName: name}); }catch(e2){}
+      } else {
+        await FB.signInWithEmailAndPassword(FB.auth, email, pw);
+      }
+    }catch(err){
+      AUTH.pendingName = '';
+      authMessage('err', authMsg(err));
+    }finally{ btn.disabled = false; }
+  });
+  $a('authForgot').addEventListener('click', async ()=>{
+    const email = $a('a_email').value.trim();
+    if(!email){ authMessage('err', 'Renseigne ton email puis clique sur « Mot de passe oublié ».'); return; }
+    try{
+      await FB.sendPasswordResetEmail(FB.auth, email);
+      authMessage('ok', 'Si un compte existe pour cet email, un lien de réinitialisation vient d\'être envoyé.');
+    }catch(err){ authMessage('err', authMsg(err)); }
+  });
+  const logout = ()=> FB.signOut(FB.auth);
+  $a('authLogout2').addEventListener('click', logout);
+  $a('logoutBtn').addEventListener('click', logout);
+  $a('authRecheck').addEventListener('click', ()=> { if(AUTH.user) handleAuthState(AUTH.user); });
+  $a('tabAdminBtn').addEventListener('click', ()=> renderAdmin());
+}
+
+/* ---------- compte utilisateur (document users/{uid}) ---------- */
+async function ensureUserDoc(user){
+  const ref = FB.doc(FB.db, 'users', user.uid);
+  const snap = await FB.getDoc(ref);
+  if(snap.exists()) return snap.data();
+
+  const base = {
+    email: user.email || '',
+    displayName: AUTH.pendingName || user.displayName || (user.email || '').split('@')[0] || 'Utilisateur',
+    createdAt: FB.serverTimestamp(),
+    role: 'user', status: 'pending', perms: allPerms(true)
+  };
+  // Tout premier compte : devient administrateur (le document meta/bootstrap ne peut être créé qu'une fois)
+  const bref = FB.doc(FB.db, 'meta', 'bootstrap');
+  const bs = await FB.getDoc(bref);
+  if(!bs.exists()){
+    try{
+      const batch = FB.writeBatch(FB.db);
+      batch.set(bref, {uid: user.uid, createdAt: FB.serverTimestamp()});
+      batch.set(ref, Object.assign({}, base, {role: 'admin', status: 'active'}));
+      await batch.commit();
+      return (await FB.getDoc(ref)).data();
+    }catch(e){ /* un autre compte est passé admin entre-temps : on crée un compte standard */ }
+  }
+  await FB.setDoc(ref, base);
+  return (await FB.getDoc(ref)).data();
+}
+
+let authSeq = 0;
+async function handleAuthState(user){
+  const seq = ++authSeq;
+  if(!user){
+    AUTH.user = null; AUTH.data = null; FS.uid = null;
+    const ac = $a('adminContent'); if(ac) ac.innerHTML = '';
+    authForm();
+    return;
+  }
+  authLoading('Chargement de ton compte…');
+  try{
+    AUTH.user = user;
+    const data = await ensureUserDoc(user);
+    if(seq !== authSeq) return;
+    data.perms = data.perms || {};
+    AUTH.data = data;
+    AUTH.pendingName = '';
+    if(data.status === 'active') await enterApp();
+    else if(data.status === 'disabled') authInfo('disabled');
+    else authInfo('pending');
+  }catch(err){
+    console.error('Auth :', err);
+    authInfo('error', authMsg(err));
+  }
+}
+
+function activateTab(name){
+  document.querySelectorAll('.tab-btn').forEach(b=> b.classList.toggle('active', b.dataset.tab === name));
+  document.querySelectorAll('.tab-panel').forEach(p=> p.classList.toggle('active', p.id === 'tab-' + name));
+}
+
+/* Affiche / masque chaque fonctionnalité selon les droits du compte. */
+function applyPermissions(){
+  const tabPerm = {nutrition:'nutrition', training:'training', perf:'perf', suivi:'suivi'};
+  document.querySelectorAll('.tab-btn').forEach(b=>{
+    const t = b.dataset.tab;
+    let ok = true;
+    if(tabPerm[t]) ok = can(tabPerm[t]);
+    if(t === 'admin') ok = isAdmin();
+    b.style.display = ok ? '' : 'none';
+  });
+  const exp = can('exportPdf');
+  ['exportNutritionBtn', 'exportTrainingBtn'].forEach(id=>{ const el = $a(id); if(el) el.style.display = exp ? '' : 'none'; });
+  $a('userChip').style.display = '';
+  $a('userChipName').textContent = AUTH.data.displayName || AUTH.data.email || '';
+  const rb = $a('userChipRole');
+  rb.textContent = AUTH.data.role === 'admin' ? 'Admin' : 'Membre';
+  rb.classList.toggle('admin', AUTH.data.role === 'admin');
+}
+
+async function migrateLocalIfNeeded(){
+  try{
+    const flag = 'formfuel_migrate_declined_' + FS.uid;
+    if(localStorage.getItem(flag)) return;
+    const cloud = await fsListValues(FS.uid, 'profile:');
+    if(cloud.length) return;
+    const pref = 'formfuel_priv_', items = [];
+    for(let i = 0; i < localStorage.length; i++){
+      const k = localStorage.key(i);
+      if(k && k.indexOf(pref) === 0){
+        const key = k.slice(pref.length);
+        if(/^(profile|history|perf):/.test(key)) items.push([key, localStorage.getItem(k)]);
+      }
+    }
+    if(!items.some(([k])=> k.indexOf('profile:') === 0)) return;
+    if(!confirm('Des profils enregistrés sur cet appareil ont été trouvés. Les importer dans ton compte en ligne ?')){
+      localStorage.setItem(flag, '1');
+      return;
+    }
+    for(const [k, v] of items) await storageSet(k, v);
+    showToast('Données de cet appareil importées ☁️');
+  }catch(e){ console.error('Migration locale :', e); }
+}
+
+async function enterApp(){
+  FS.uid = AUTH.user.uid;
+  $a('authScreen').style.display = 'none';
+  $a('app').style.display = '';
+  activateTab('profil');
+  applyPermissions();
+  await migrateLocalIfNeeded();
+  await init();
+  if(isAdmin()) adminUpdateBadge();
+}
+
+function startAuthFlow(){
+  bindAuthUi();
+  setAuthMode('login');
+  const go = ()=> FB.onAuthStateChanged(FB.auth, handleAuthState);
+  if(window.FB){ go(); return; }
+  if(window.FB_ERROR){ authInfo('error', 'Impossible de charger Firebase (réseau ou bloqueur de contenu ?).'); return; }
+  authLoading('Connexion au service…');
+  window.addEventListener('ff-fb-ready', go, {once:true});
+  window.addEventListener('ff-fb-error', ()=> authInfo('error', 'Impossible de charger Firebase (réseau ou bloqueur de contenu ?).'), {once:true});
+}
+
+/* =========================================================================
+   ESPACE ADMIN
+========================================================================= */
+const adminState = {users:[], viewUid:null, profiles:[], profileId:null, history:[], perf:null, tab:'bilan'};
+
+async function adminLoadUsers(){
+  const s = await FB.getDocs(FB.collection(FB.db, 'users'));
+  return s.docs.map(d=> Object.assign({uid: d.id}, d.data())).sort((a,b)=> tsMs(b.createdAt) - tsMs(a.createdAt));
+}
+async function adminUpdateBadge(){
+  try{
+    const users = await adminLoadUsers();
+    const n = users.filter(u=> u.status === 'pending').length;
+    const b = $a('adminBadge');
+    b.textContent = n || ''; b.style.display = n ? '' : 'none';
+  }catch(e){}
+}
+
+function renderAdmin(){
+  const c = $a('adminContent');
+  if(!isAdmin()){ c.innerHTML = ''; return; }
+  if(!c.dataset.bound){
+    c.dataset.bound = '1';
+    c.addEventListener('change', onAdminChange);
+    c.addEventListener('click', onAdminClick);
+  }
+  if(!$a('adminUsers')){
+    c.innerHTML = `
+      <div class="sheet">
+        <div class="sheet-tab" style="background:var(--accent);">Admin</div>
+        <h2>Comptes &amp; droits d'accès</h2>
+        <p class="sub">Valide les nouveaux comptes, choisis les fonctionnalités accessibles à chacun et consulte les plans créés par les utilisateurs.</p>
+        <div id="adminUsers"><p class="empty-note">Chargement…</p></div>
+      </div>
+      <div id="adminViewer"></div>`;
+  }
+  adminRefreshUsers();
+}
+
+async function adminRefreshUsers(){
+  const box = $a('adminUsers');
+  if(!box) return;
+  try{
+    adminState.users = await adminLoadUsers();
+  }catch(e){
+    console.error(e);
+    box.innerHTML = `<div class="warn-box">⚠️ Impossible de lire la liste des comptes : ${escapeHtml(authMsg(e))}</div>`;
+    return;
+  }
+  const users = adminState.users;
+  const pending = users.filter(u=> u.status === 'pending').length;
+  const b = $a('adminBadge'); if(b){ b.textContent = pending || ''; b.style.display = pending ? '' : 'none'; }
+  const me = AUTH.user.uid;
+  const rows = users.map(u=>{
+    const self = u.uid === me, perms = u.perms || {}, adm = u.role === 'admin';
+    const permHtml = PERM_DEFS.map(([k, l])=>
+      `<label class="perm-chk"><input type="checkbox" data-admin-perm="${k}" data-uid="${u.uid}" ${(adm || perms[k]) ? 'checked' : ''} ${(self || adm) ? 'disabled' : ''}> ${l}</label>`).join('');
+    const opt = (v, l, cur)=> `<option value="${v}" ${cur === v ? 'selected' : ''}>${l}</option>`;
+    const created = tsMs(u.createdAt) ? new Date(tsMs(u.createdAt)).toLocaleDateString('fr-FR') : '—';
+    return `<tr class="${u.status === 'pending' ? 'pending' : ''}">
+      <td><b>${escapeHtml(u.displayName || '—')}</b>${self ? ' <span class="role-badge admin">toi</span>' : ''}<small>${escapeHtml(u.email || '')}</small><small>Créé le ${created}</small></td>
+      <td><select data-admin-status="${u.uid}" ${self ? 'disabled' : ''}>${opt('active', 'Actif', u.status)}${opt('pending', 'En attente', u.status)}${opt('disabled', 'Suspendu', u.status)}</select></td>
+      <td><select data-admin-role="${u.uid}" ${self ? 'disabled' : ''}>${opt('user', 'Membre', u.role)}${opt('admin', 'Administrateur', u.role)}</select></td>
+      <td><div class="perm-grid">${permHtml}</div>${adm ? '<small>Les administrateurs ont tous les droits.</small>' : ''}</td>
+      <td><button type="button" class="btn btn-ghost btn-sm" style="color:var(--ink);border-color:#D9D2BC;" data-admin-view="${u.uid}">👁 Voir ses plans</button></td>
+    </tr>`;
+  }).join('');
+  box.innerHTML = `
+    <p class="sub" style="margin-bottom:0;">${users.length} compte(s) · <b>${pending}</b> en attente de validation</p>
+    <div class="admin-table-wrap"><table class="admin-table">
+      <thead><tr><th>Compte</th><th>Statut</th><th>Rôle</th><th>Droits d'accès</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+}
+
+async function adminUpdate(uid, patch){
+  try{
+    await FB.updateDoc(FB.doc(FB.db, 'users', uid), patch);
+    showToast('Modification enregistrée ✅');
+  }catch(err){
+    console.error(err);
+    showToast('Échec : ' + authMsg(err));
+  }
+  await adminRefreshUsers();
+}
+
+function onAdminChange(e){
+  const t = e.target;
+  if(t.dataset.adminStatus){ adminUpdate(t.dataset.adminStatus, {status: t.value}); }
+  else if(t.dataset.adminRole){
+    const patch = {role: t.value};
+    if(t.value === 'admin'){ patch.perms = allPerms(true); patch.status = 'active'; }
+    adminUpdate(t.dataset.adminRole, patch);
+  }
+  else if(t.dataset.adminPerm){ adminUpdate(t.dataset.uid, {['perms.' + t.dataset.adminPerm]: t.checked}); }
+  else if(t.id === 'adminProfileSel'){
+    adminState.profileId = t.value;
+    adminLoadProfileData().then(adminRenderViewer);
+  }
+}
+function onAdminClick(e){
+  const v = e.target.closest('[data-admin-view]');
+  if(v){ adminState.tab = 'bilan'; adminOpenUser(v.dataset.adminView); return; }
+  const s = e.target.closest('[data-admin-subtab]');
+  if(s){ adminState.tab = s.dataset.adminSubtab; adminRenderViewer(); return; }
+  if(e.target.closest('[data-admin-refresh]')){ adminOpenUser(adminState.viewUid); }
+}
+
+/* ---- lecture des données d'un autre utilisateur ---- */
+const parseJ = (v, d)=> { try{ return v ? JSON.parse(v) : d; }catch(e){ return d; } };
+async function fsGetVal(uid, key){
+  const s = await FB.getDoc(storeRef(uid, key));
+  return s.exists() ? s.data().value : null;
+}
+async function adminOpenUser(uid){
+  const box = $a('adminViewer');
+  box.innerHTML = '<div class="sheet"><p class="sub">Chargement des données…</p></div>';
+  adminState.viewUid = uid;
+  try{
+    const rows = await fsListValues(uid, 'profile:');
+    adminState.profiles = rows.map(r=> parseJ(r.value, null)).filter(Boolean).sort((a,b)=> (b.createdAt || 0) - (a.createdAt || 0));
+    adminState.profileId = adminState.profiles.length ? adminState.profiles[0].id : null;
+    await adminLoadProfileData();
+    adminRenderViewer();
+    box.scrollIntoView({behavior:'smooth', block:'start'});
+  }catch(err){
+    console.error(err);
+    box.innerHTML = `<div class="sheet"><div class="warn-box">⚠️ Lecture impossible : ${escapeHtml(authMsg(err))}</div></div>`;
+  }
+}
+async function adminLoadProfileData(){
+  const uid = adminState.viewUid, pid = adminState.profileId;
+  adminState.history = []; adminState.perf = emptyPerf();
+  if(!pid) return;
+  const [h, p] = await Promise.all([fsGetVal(uid, 'history:' + pid), fsGetVal(uid, 'perf:' + pid)]);
+  adminState.history = parseJ(h, []);
+  const d = parseJ(p, {});
+  adminState.perf = {customExos: d.customExos || [], logs: d.logs || [], rm: d.rm || [], pct: d.pct || {}};
+}
+
+/* Les graines de « Nouvelles suggestions » sont enregistrées dans le profil : on les rejoue pour retrouver exactement le même plan. */
+function withSeeds(profile, fn){
+  const r = recipeSeed, t = trainingSeed;
+  recipeSeed = profile.recipeSeed || 0; trainingSeed = profile.trainingSeed || 0;
+  try{ return fn(); } finally { recipeSeed = r; trainingSeed = t; }
+}
+
+function adminRenderViewer(){
+  const box = $a('adminViewer');
+  const u = adminState.users.find(x=> x.uid === adminState.viewUid) || {};
+  const head = `
+    <div class="sheet-tab" style="background:var(--g-jambes); color:#fff;">Lecture seule</div>
+    <h2>Plans de ${escapeHtml(u.displayName || u.email || 'cet utilisateur')}</h2>
+    <p class="sub">${escapeHtml(u.email || '')} — tu consultes les données de ce compte, sans pouvoir les modifier.</p>`;
+  if(!adminState.profiles.length){
+    box.innerHTML = `<div class="sheet">${head}<p class="empty-note">Cet utilisateur n'a encore créé aucun profil / plan.</p>
+      <div class="macro-editor-actions"><button type="button" class="btn btn-ghost btn-sm" style="color:var(--ink);border-color:#D9D2BC;" data-admin-refresh>↻ Actualiser</button></div></div>`;
+    return;
+  }
+  const profile = adminState.profiles.find(p=> p.id === adminState.profileId) || adminState.profiles[0];
+  const tabs = [['bilan', 'Profil & bilan'], ['nutrition', 'Nutrition'], ['training', 'Entraînement'], ['suivi', 'Suivi'], ['perf', 'Performances']];
+  let body = '';
+  try{
+    body = withSeeds(profile, ()=> ({
+      bilan: adminBilanHtml, nutrition: adminNutritionHtml, training: adminTrainingHtml, suivi: adminSuiviHtml, perf: adminPerfHtml
+    }[adminState.tab] || adminBilanHtml)(profile));
+  }catch(err){ console.error(err); body = `<div class="warn-box">⚠️ Impossible d'afficher cette section : ${escapeHtml(err.message)}</div>`; }
+  box.innerHTML = `
+    <div class="sheet">
+      ${head}
+      <div class="admin-bar">
+        ${adminState.profiles.length > 1 ? `<div class="field"><label for="adminProfileSel">Profil</label><select id="adminProfileSel">${adminState.profiles.map(p=> `<option value="${p.id}" ${p.id === profile.id ? 'selected' : ''}>${escapeHtml(p.prenom)} — ${escapeHtml(p.objectif)}</option>`).join('')}</select></div>` : ''}
+        <button type="button" class="btn btn-ghost btn-sm" style="color:var(--ink);border-color:#D9D2BC;" data-admin-refresh>↻ Actualiser</button>
+      </div>
+      <div class="subtabs">${tabs.map(([k, l])=> `<button type="button" data-admin-subtab="${k}" class="${adminState.tab === k ? 'active' : ''}">${l}</button>`).join('')}</div>
+      ${body}
+    </div>`;
+}
+
+const OBJ_LABEL = {perte:'Perte de poids', prise:'Prise de masse', recomposition:'Recomposition', maintien:'Maintien'};
+const NIV_LABEL = {debutant:'Débutant', intermediaire:'Intermédiaire', avance:'Avancé'};
+const statCard = (l, v, unit)=> `<div class="stat-card"><div class="label">${l}</div><div class="value">${v}${unit ? `<span class="unit">${unit}</span>` : ''}</div></div>`;
+
+function adminBilanHtml(p){
+  const plan = calcPlan(p);
+  const allerg = (p.allergenes || []).map(a=> escapeHtml(a.label)).join(', ') || 'aucun';
+  return `
+    <div class="stat-row">
+      ${statCard('Âge', escapeHtml(p.age), 'ans')}${statCard('Poids', escapeHtml(p.poids), 'kg')}${statCard('Taille', escapeHtml(p.taille), 'cm')}
+      ${p.poidscible ? statCard('Poids visé', escapeHtml(p.poidscible), 'kg') : ''}
+    </div>
+    <p class="sub" style="margin-top:12px;">${escapeHtml(p.prenom)} · ${p.sexe === 'F' ? 'Femme' : 'Homme'} · objectif <b>${OBJ_LABEL[p.objectif] || escapeHtml(p.objectif)}</b> sur ${escapeHtml(p.duree || 12)} semaines · niveau ${NIV_LABEL[p.niveau] || escapeHtml(p.niveau)} · ${escapeHtml(p.jours)} séances/semaine · allergènes : ${allerg}</p>
+    <div class="stat-row">
+      ${statCard('Métabolisme de base', plan.bmr, 'kcal')}${statCard('Dépense (TDEE)', plan.tdee, 'kcal')}${statCard('Objectif calorique', plan.calTarget, 'kcal')}
+      ${statCard('Protéines', plan.proteinG, 'g')}${statCard('Glucides', plan.carbsG, 'g')}${statCard('Lipides', plan.fatG, 'g')}
+    </div>
+    ${plan.isManual ? '<div class="ok-box">✏️ Macros personnalisées par l\'utilisateur.</div>' : ''}
+    ${plan.rateWarning ? `<div class="warn-box">⚠️ ${escapeHtml(plan.rateWarning)}</div>` : ''}`;
+}
+
+function adminMealCard(label, title, kcal, p, c, f, ing, steps, prep){
+  return `<div class="meal-card admin-meal">
+    <div class="meal-head"><h4>${escapeHtml(label)}</h4><span class="meal-kcal">~${kcal} kcal</span></div>
+    <div class="recipe-card">
+      <div class="recipe-head">
+        <span class="recipe-title">${escapeHtml(title)}</span>
+        <span class="recipe-meta">P ${p} g · G ${c} g · L ${f} g${prep ? ' · ' + prep + ' min' : ''}</span>
+      </div>
+      <details><summary>Ingrédients &amp; préparation</summary><div class="recipe-body">
+        <p class="recipe-sub">Ingrédients</p><ul>${ing.map(i=> `<li>${escapeHtml(i)}</li>`).join('')}</ul>
+        <p class="recipe-sub">Préparation</p><ol>${steps.map(s=> `<li>${escapeHtml(s)}</li>`).join('')}</ol>
+      </div></details>
+    </div></div>`;
+}
+
+function adminNutritionHtml(p){
+  const plan = calcPlan(p);
+  const ap = getValidAiPlan(p, plan);
+  const meals = getMeals(p);
+  const cards = meals.map((m, i)=>{
+    if(ap){
+      const am = ap.meals[i];
+      return adminMealCard(m.label, '✨ ' + am.t, am.kcal, am.p, am.c, am.f, am.ing, am.steps, am.prep);
+    }
+    const kcal = Math.round(plan.calTarget * m.pct);
+    const r = pickRecipe(m.key, p.objectif, recipeSeed + i, p.allergenes || []);
+    if(!r) return `<div class="meal-card"><div class="meal-head"><h4>${escapeHtml(m.label)}</h4></div><p class="recipe-adjust">Aucune recette compatible avec les allergènes.</p></div>`;
+    const s = getScaledRecipe(r, kcal);
+    return adminMealCard(m.label, r.t, s.kcal, s.p, s.c, s.f, s.ing, r.steps, r.prep);
+  }).join('');
+  return `
+    <p class="sub" style="margin-top:10px;">${plan.calTarget} kcal/jour · P ${plan.proteinG} g · G ${plan.carbsG} g · L ${plan.fatG} g · ${meals.length} repas · ${ap ? 'recettes générées par IA' : 'recettes de la base intégrée'}</p>
+    <div class="meal-grid">${cards}</div>`;
+}
+
+function adminTrainingHtml(p){
+  const days = generateTrainingPlan(p);
+  return `<p class="sub" style="margin-top:10px;">${escapeHtml(p.jours)} séances / semaine · niveau ${NIV_LABEL[p.niveau] || escapeHtml(p.niveau)}</p>` + days.map(day=> `
+    <div class="day-card">
+      <h3>${day.name}</h3>
+      <table class="log-table"><thead><tr><th>Exercice</th><th>Muscle</th><th>Séries</th><th>Reps</th><th>Repos</th></tr></thead><tbody>
+        ${day.exercises.map(e=> `<tr><td>${e.name}</td><td>${GROUP_META[e.group].label}</td><td>${escapeHtml(e.sets)}</td><td>${escapeHtml(e.reps)}</td><td>${escapeHtml(e.rest)}</td></tr>`).join('')}
+      </tbody></table>
+      ${day.circuitNote ? `<p class="recipe-adjust">${day.circuitNote}</p>` : ''}
+    </div>`).join('');
+}
+
+function adminSuiviHtml(){
+  const h = [...adminState.history].sort((a,b)=> new Date(b.date) - new Date(a.date));
+  if(!h.length) return '<p class="empty-note">Aucun relevé de poids / mensurations.</p>';
+  const asc = [...h].reverse(), delta = (asc[asc.length - 1].poids - asc[0].poids).toFixed(1);
+  return `
+    <div class="stat-row">${statCard('Relevés', h.length)}${statCard('Dernier poids', h[0].poids, 'kg')}${statCard('Variation totale', delta, 'kg')}</div>
+    <table class="log-table"><thead><tr><th>Date</th><th>Poids</th><th>Poitrine</th><th>Taille</th><th>Hanches</th><th>Bras</th><th>Cuisses</th></tr></thead><tbody>
+      ${h.map(e=> `<tr><td>${formatDate(e.date)}</td><td>${e.poids} kg</td><td>${e.poitrine ?? '—'}</td><td>${e.taille ?? '—'}</td><td>${e.hanches ?? '—'}</td><td>${e.bras ?? '—'}</td><td>${e.cuisses ?? '—'}</td></tr>`).join('')}
+    </tbody></table>`;
+}
+
+function adminPerfHtml(){
+  const P = adminState.perf;
+  if(!P.logs.length && !P.rm.length) return '<p class="empty-note">Aucune charge ni 1RM noté.</p>';
+  const exos = [...new Set(P.rm.map(r=> r.exo))];
+  const rmRows = exos.map(exo=>{
+    const l = P.rm.filter(r=> r.exo === exo).sort((a,b)=> a.date < b.date ? -1 : 1);
+    const last = l[l.length - 1], d = last.kg - l[0].kg;
+    return `<tr><td>${escapeHtml(exo)}</td><td><b>${fmtKg(last.kg)} kg</b></td><td>${l.length > 1 ? (d >= 0 ? '+' : '') + fmtKg(d) + ' kg' : '—'}</td><td>${formatDate(last.date)}</td></tr>`;
+  }).join('');
+  const logs = [...P.logs].sort((a,b)=> a.date < b.date ? 1 : -1).slice(0, 60);
+  return `
+    <div class="stat-row">${statCard('Séries notées', P.logs.length)}${statCard('Séances', new Set(P.logs.map(l=> l.date)).size)}${statCard('1RM suivis', exos.length)}</div>
+    ${rmRows ? `<h3 class="perf-sep">1RM</h3><table class="log-table"><thead><tr><th>Exercice</th><th>1RM actuel</th><th>Évolution</th><th>Dernière mesure</th></tr></thead><tbody>${rmRows}</tbody></table>` : ''}
+    ${logs.length ? `<h3 class="perf-sep">Dernières séries</h3><table class="log-table"><thead><tr><th>Date</th><th>Exercice</th><th>Charge</th><th>Reps × séries</th><th>1RM est.</th></tr></thead><tbody>
+      ${logs.map(l=> `<tr><td>${formatDate(l.date)}</td><td>${escapeHtml(l.exo)}</td><td>${fmtKg(l.kg)} kg</td><td>${l.reps} × ${l.sets || 1}</td><td>${fmtKg(epley(l.kg, l.reps))} kg</td></tr>`).join('')}
+    </tbody></table>` : ''}`;
+}
+
+startAuthFlow();
+</script>
+<script type="module">
+const firebaseConfig = {
+  apiKey: "AIzaSyDd_8PpENvUgm8Lm8gLJxBCsiiv7Fn7D34",
+  authDomain: "formfuel-ca7f9.firebaseapp.com",
+  projectId: "formfuel-ca7f9",
+  storageBucket: "formfuel-ca7f9.firebasestorage.app",
+  messagingSenderId: "147037866926",
+  appId: "1:147037866926:web:53ebb03c465af74fd0563f",
+  measurementId: "G-HYYL44B931"
+};
+try{
+  const base = 'https://www.gstatic.com/firebasejs/10.14.1/';
+  const [appM, authM, fsM] = await Promise.all([
+    import(base + 'firebase-app.js'),
+    import(base + 'firebase-auth.js'),
+    import(base + 'firebase-firestore.js')
+  ]);
+  const app = appM.initializeApp(firebaseConfig);
+  window.FB = {
+    app,
+    auth: authM.getAuth(app),
+    db: fsM.getFirestore(app),
+    onAuthStateChanged: authM.onAuthStateChanged,
+    signInWithEmailAndPassword: authM.signInWithEmailAndPassword,
+    createUserWithEmailAndPassword: authM.createUserWithEmailAndPassword,
+    signOut: authM.signOut,
+    sendPasswordResetEmail: authM.sendPasswordResetEmail,
+    updateProfile: authM.updateProfile,
+    doc: fsM.doc, getDoc: fsM.getDoc, setDoc: fsM.setDoc, updateDoc: fsM.updateDoc, deleteDoc: fsM.deleteDoc,
+    collection: fsM.collection, getDocs: fsM.getDocs, query: fsM.query, where: fsM.where, documentId: fsM.documentId,
+    writeBatch: fsM.writeBatch, serverTimestamp: fsM.serverTimestamp
+  };
+  window.dispatchEvent(new Event('ff-fb-ready'));
+}catch(e){
+  console.error('Firebase :', e);
+  window.FB_ERROR = e;
+  window.dispatchEvent(new Event('ff-fb-error'));
+}
 </script>
 </body>
 </html>
