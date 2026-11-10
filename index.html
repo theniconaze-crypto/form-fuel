@@ -602,6 +602,8 @@ tailwind.config = {
 
       <!-- ===== PROFIL ===== -->
       <section id="tab-profil" class="tab-panel active">
+        <div id="ffTransfers"></div>
+        <div id="ffMyProfiles"></div>
         <div class="sheet">
           <div class="sheet-tab" style="background:var(--accent);">Étape 1</div>
           <h2>Fiche profil</h2>
@@ -3903,6 +3905,7 @@ async function refreshProfileSelect(selectedId){
   select.innerHTML = '<option value="">— Nouveau profil —</option>' +
     profiles.map(p=> `<option value="${p.id}">${escapeHtml(p.prenom)} — ${p.objectif === 'perte' ? 'Perte' : p.objectif === 'prise' ? 'Prise' : p.objectif === 'recomposition' ? 'Recomposition' : 'Maintien'}</option>`).join('');
   if(selectedId) select.value = selectedId;
+  if(window.ffAfterProfiles) ffAfterProfiles(profiles);
 }
 
 async function loadProfileIntoApp(id){
@@ -4745,10 +4748,12 @@ function renderAdmin(){
         <p class="sub">Active ou désactive un compte, choisis les fonctionnalités accessibles à chacun et consulte les plans créés par les utilisateurs.</p>
         <div id="adminUsers"><p class="empty-note">Chargement…</p></div>
       </div>
+      <div id="ffAdminAll"></div>
       <div id="adminViewer"></div>`;
   }
   adminRefreshUsers();
   adminKeyRefresh();
+  if(window.ffAdminRenderAll) ffAdminRenderAll();
 }
 
 async function adminKeyRefresh(){
@@ -5017,9 +5022,9 @@ function adminRenderViewer(){
   const box = $a('adminViewer');
   const u = adminState.users.find(x=> x.uid === adminState.viewUid) || {};
   const head = `
-    <div class="sheet-tab" style="background:var(--g-jambes); color:#fff;">Lecture seule</div>
+    <div class="sheet-tab" style="background:var(--g-jambes); color:#fff;">Gestion admin</div>
     <h2>Plans de ${escapeHtml(u.displayName || u.email || 'cet utilisateur')}</h2>
-    <p class="sub">${escapeHtml(u.email || '')} — tu consultes les données de ce compte, sans pouvoir les modifier.</p>`;
+    <p class="sub">${escapeHtml(u.email || '')} — tu peux consulter, supprimer, copier ou envoyer les profils de ce compte.</p>`;
   if(!adminState.profiles.length){
     box.innerHTML = `<div class="sheet">${head}<p class="empty-note">Cet utilisateur n'a encore créé aucun profil / plan.</p>
       <div class="macro-editor-actions"><button type="button" class="btn btn-ghost btn-sm" style="color:var(--ink);border-color:#D9D2BC;" data-admin-refresh>↻ Actualiser</button></div></div>`;
@@ -5036,6 +5041,7 @@ function adminRenderViewer(){
   box.innerHTML = `
     <div class="sheet">
       ${head}
+      ${ffAdminProfileActions(profile)}
       <div class="admin-bar">
         ${adminState.profiles.length > 1 ? `<div class="field"><label for="adminProfileSel">Profil</label><select id="adminProfileSel">${adminState.profiles.map(p=> `<option value="${p.id}" ${p.id === profile.id ? 'selected' : ''}>${escapeHtml(p.prenom)} — ${escapeHtml(p.objectif)}</option>`).join('')}</select></div>` : ''}
         <button type="button" class="btn btn-ghost btn-sm" style="color:var(--ink);border-color:#D9D2BC;" data-admin-refresh>↻ Actualiser</button>
@@ -5143,6 +5149,248 @@ function adminPerfHtml(){
 }
 
 startAuthFlow();
+</script>
+<script>
+/* =========================================================================
+   GESTION DES PROFILS : suppression, copie et envoi vers un autre compte
+   Collection Firestore « transfers/{id} » — le destinataire doit accepter.
+   - copie  : le profil reste chez l'expéditeur
+   - envoi  : le profil quitte l'expéditeur ; il lui est rendu si refus/annulation
+========================================================================= */
+const FF_OBJ = {perte:'Perte', prise:'Prise', recomposition:'Recomposition', maintien:'Maintien'};
+const ffEmail = ()=> String((AUTH.user && AUTH.user.email) || (AUTH.data && AUTH.data.email) || '').trim().toLowerCase();
+const ffNewId = ()=> Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const ffBtn = 'btn btn-ghost btn-sm" style="color:var(--ink);border-color:#D9D2BC;';
+const ffDate = t=> { const ms = t && t.toMillis ? t.toMillis() : (t || 0); return ms ? new Date(ms).toLocaleDateString('fr-FR') : ''; };
+
+async function ffReadBundle(uid, pid){
+  const g = k=> FB.getDoc(storeRef(uid, k)).then(s=> s.exists() ? s.data().value : null);
+  const [p, h, pf] = await Promise.all([g('profile:' + pid), g('history:' + pid), g('perf:' + pid)]);
+  if(!p) throw new Error('Profil introuvable');
+  return {profile: p, history: h, perf: pf};
+}
+async function ffWriteBundle(uid, bundle, keepId){
+  const prof = JSON.parse(bundle.profile);
+  const id = keepId ? prof.id : ffNewId();
+  prof.id = id;
+  const put = (k, v)=> v == null ? null : FB.setDoc(storeRef(uid, k + id), {value: String(v), updatedAt: FB.serverTimestamp()});
+  await Promise.all([put('profile:', JSON.stringify(prof)), put('history:', bundle.history), put('perf:', bundle.perf)]);
+  return id;
+}
+async function ffDeleteFrom(uid, pid){
+  await Promise.all(['profile:', 'history:', 'perf:'].map(k=> FB.deleteDoc(storeRef(uid, k + pid)).catch(()=>{})));
+}
+
+/* Crée une demande de transfert. ownerUid = propriétaire du profil (l'admin peut agir pour un autre compte). */
+async function ffCreateTransfer(ownerUid, ownerName, ownerEmail, pid, mode, toEmail){
+  toEmail = String(toEmail || '').trim().toLowerCase();
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(toEmail)) throw new Error('Adresse email invalide');
+  if(toEmail === String(ownerEmail || '').toLowerCase()) throw new Error('Choisis un autre compte que le propriétaire');
+  const bundle = await ffReadBundle(ownerUid, pid);
+  const prof = JSON.parse(bundle.profile);
+  const ref = FB.doc(FB.collection(FB.db, 'transfers'));
+  await FB.setDoc(ref, {
+    fromUid: ownerUid, fromName: ownerName || '', fromEmail: String(ownerEmail || '').toLowerCase(),
+    toEmail, mode, status: 'pending', profileName: prof.prenom || 'Profil', objectif: prof.objectif || '',
+    bundle: JSON.stringify(bundle), byAdmin: AUTH.user.uid !== ownerUid, createdBy: AUTH.user.uid,
+    createdAt: FB.serverTimestamp()
+  });
+  if(mode === 'send') await ffDeleteFrom(ownerUid, pid);
+}
+
+/* ---------- côté utilisateur ---------- */
+async function ffAfterProfiles(profiles){
+  const box = document.getElementById('ffMyProfiles');
+  if(!box || !FS.uid) return;
+  profiles = profiles || await loadAllProfiles();
+  box.innerHTML = `<div class="sheet">
+    <div class="sheet-tab" style="background:var(--g-jambes); color:#fff;">Mes profils</div>
+    <h2>Gérer mes profils</h2>
+    <p class="sub">Supprime un profil, copie-le vers un autre compte (tu le gardes) ou envoie-le (il quitte ton compte). Le destinataire doit accepter.</p>
+    ${profiles.length ? `<div class="admin-table-wrap"><table class="admin-table" style="min-width:640px;">
+      <thead><tr><th>Profil</th><th>Objectif</th><th>Créé le</th><th>Actions</th></tr></thead><tbody>
+      ${profiles.map(p=> `<tr><td><b>${escapeHtml(p.prenom || 'Profil')}</b></td><td>${FF_OBJ[p.objectif] || escapeHtml(p.objectif || '')}</td><td>${ffDate(p.createdAt)}</td>
+        <td style="white-space:nowrap;"><button type="button" class="${ffBtn}" data-ff-open="${p.id}">Ouvrir</button>
+        <button type="button" class="${ffBtn}" data-ff-copy="${p.id}">Copier vers…</button>
+        <button type="button" class="${ffBtn}" data-ff-send="${p.id}">Envoyer vers…</button>
+        <button type="button" class="btn btn-danger btn-sm" data-ff-del="${p.id}">Supprimer</button></td></tr>`).join('')}
+      </tbody></table></div>` : '<p class="empty-note">Aucun profil pour le moment.</p>'}
+  </div>`;
+  ffRenderTransfers();
+}
+
+async function ffRenderTransfers(){
+  const box = document.getElementById('ffTransfers');
+  if(!box || !FS.uid) return;
+  const col = FB.collection(FB.db, 'transfers');
+  let inc = [], out = [];
+  try{
+    const [a, b] = await Promise.all([
+      FB.getDocs(FB.query(col, FB.where('toEmail', '==', ffEmail()))),
+      FB.getDocs(FB.query(col, FB.where('fromUid', '==', FS.uid)))
+    ]);
+    inc = a.docs.map(d=> Object.assign({id: d.id}, d.data())).filter(t=> t.status === 'pending');
+    out = b.docs.map(d=> Object.assign({id: d.id}, d.data()));
+  }catch(e){ console.error('Transferts :', e); box.innerHTML = ''; return; }
+
+  /* un profil « envoyé » puis refusé ou annulé revient automatiquement à son propriétaire */
+  let restored = 0;
+  for(const t of out){
+    if(t.mode === 'send' && (t.status === 'refused' || t.status === 'cancelled')){
+      try{ await ffWriteBundle(FS.uid, JSON.parse(t.bundle), true); await FB.deleteDoc(FB.doc(FB.db, 'transfers', t.id)); restored++; t.status = 'gone'; }
+      catch(e){ console.error(e); }
+    }
+  }
+  if(restored){ showToast(restored + ' profil(s) refusé(s) récupéré(s)'); await refreshProfileSelect(state.currentId || ''); return; }
+
+  const pend = out.filter(t=> t.status === 'pending');
+  const done = out.filter(t=> t.status === 'accepted' || (t.mode === 'copy' && (t.status === 'refused' || t.status === 'cancelled')));
+  if(!inc.length && !pend.length && !done.length){ box.innerHTML = ''; return; }
+  const lab = t=> t.mode === 'send' ? 'envoi' : 'copie';
+  box.innerHTML = `<div class="sheet">
+    <div class="sheet-tab" style="background:var(--accent);">Transferts</div>
+    <h2>Profils partagés</h2>
+    ${inc.length ? `<h3 style="margin-top:8px;">Reçus — à accepter</h3>${inc.map(t=> `<div class="ok-box" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin-top:8px;">
+      <span><b>${escapeHtml(t.profileName)}</b> (${FF_OBJ[t.objectif] || ''}) — ${lab(t)} de ${escapeHtml(t.fromName || t.fromEmail)}${t.byAdmin ? ' via l\'administrateur' : ''}</span>
+      <span><button type="button" class="btn btn-sm" data-ff-accept="${t.id}">Accepter</button>
+      <button type="button" class="btn btn-danger btn-sm" data-ff-refuse="${t.id}">Refuser</button></span></div>`).join('')}` : ''}
+    ${pend.length ? `<h3 style="margin-top:14px;">Envoyés — en attente</h3>${pend.map(t=> `<p class="sub" style="margin-top:6px;">${escapeHtml(t.profileName)} → ${escapeHtml(t.toEmail)} (${lab(t)}) <button type="button" class="${ffBtn}" data-ff-cancel="${t.id}">Annuler</button></p>`).join('')}` : ''}
+    ${done.length ? `<h3 style="margin-top:14px;">Terminés</h3>${done.map(t=> `<p class="sub" style="margin-top:6px;">${escapeHtml(t.profileName)} → ${escapeHtml(t.toEmail)} : ${t.status === 'accepted' ? 'accepté ✅' : 'refusé'} <button type="button" class="${ffBtn}" data-ff-clear="${t.id}">Effacer</button></p>`).join('')}` : ''}
+  </div>`;
+}
+
+async function ffSetStatus(id, status){
+  await FB.updateDoc(FB.doc(FB.db, 'transfers', id), {status, answeredAt: FB.serverTimestamp(), answeredBy: AUTH.user.uid});
+}
+
+document.addEventListener('click', async (e)=>{
+  const el = e.target.closest('[data-ff-open],[data-ff-copy],[data-ff-send],[data-ff-del],[data-ff-accept],[data-ff-refuse],[data-ff-cancel],[data-ff-clear],[data-ffa-del],[data-ffa-copy],[data-ffa-send],[data-ffa-cancel],[data-ffa-view],[data-ffa-reload]');
+  if(!el || !window.FB || !FS.uid) return;
+  const d = el.dataset;
+  el.disabled = true;
+  try{
+    if(d.ffOpen){
+      document.getElementById('profileSelect').value = d.ffOpen;
+      await loadProfileIntoApp(d.ffOpen);
+      document.getElementById('profileForm').scrollIntoView({behavior:'smooth'});
+    }
+    else if(d.ffDel){
+      if(!confirm('Supprimer définitivement ce profil et son historique ?')) return;
+      if(state.currentId === d.ffDel){ await handleDeleteProfileSilent(); }
+      await deleteProfileById(d.ffDel);
+      await refreshProfileSelect(state.currentId || '');
+      showToast('Profil supprimé');
+    }
+    else if(d.ffCopy || d.ffSend){
+      const mode = d.ffCopy ? 'copy' : 'send';
+      const pid = d.ffCopy || d.ffSend;
+      const to = prompt(mode === 'copy' ? 'Copier ce profil vers le compte (email) :' : 'Envoyer ce profil vers le compte (email). Il quittera ton compte :');
+      if(!to) return;
+      await ffCreateTransfer(FS.uid, AUTH.data.displayName, ffEmail(), pid, mode, to);
+      if(mode === 'send' && state.currentId === pid) await handleDeleteProfileSilent();
+      await refreshProfileSelect(state.currentId || '');
+      showToast(mode === 'copy' ? 'Copie proposée — en attente d\'acceptation' : 'Envoi proposé — en attente d\'acceptation');
+    }
+    else if(d.ffAccept){
+      const s = await FB.getDoc(FB.doc(FB.db, 'transfers', d.ffAccept));
+      if(!s.exists() || s.data().status !== 'pending') throw new Error('Ce transfert n\'est plus disponible');
+      const id = await ffWriteBundle(FS.uid, JSON.parse(s.data().bundle), false);
+      await ffSetStatus(d.ffAccept, 'accepted');
+      await refreshProfileSelect(id);
+      await loadProfileIntoApp(id);
+      showToast('Profil ajouté à ton compte ✅');
+    }
+    else if(d.ffRefuse){ await ffSetStatus(d.ffRefuse, 'refused'); await ffRenderTransfers(); showToast('Transfert refusé'); }
+    else if(d.ffCancel){ await ffSetStatus(d.ffCancel, 'cancelled'); await ffRenderTransfers(); showToast('Transfert annulé'); }
+    else if(d.ffClear){ await FB.deleteDoc(FB.doc(FB.db, 'transfers', d.ffClear)); await ffRenderTransfers(); }
+    /* ---- admin ---- */
+    else if(isAdmin() && (d.ffaDel || d.ffaCopy || d.ffaSend)){
+      const [uid, pid] = (d.ffaDel || d.ffaCopy || d.ffaSend).split('|');
+      const owner = (adminState.users.find(u=> u.uid === uid) || {});
+      if(d.ffaDel){
+        if(!confirm('Supprimer définitivement ce profil de ' + (owner.displayName || owner.email || 'ce compte') + ' ?')) return;
+        await ffDeleteFrom(uid, pid);
+        showToast('Profil supprimé');
+      } else {
+        const mode = d.ffaCopy ? 'copy' : 'send';
+        const sel = document.getElementById('ffaTarget_' + pid);
+        const to = sel ? sel.value : '';
+        if(!to) throw new Error('Choisis le compte destinataire');
+        await ffCreateTransfer(uid, owner.displayName, owner.email, pid, mode, to);
+        showToast('Transfert proposé — en attente d\'acceptation');
+      }
+      if(uid === FS.uid) await refreshProfileSelect(state.currentId || '');
+      if(adminState.viewUid === uid) await adminOpenUser(uid);
+      await ffAdminRenderAll();
+    }
+    else if(isAdmin() && d.ffaCancel){ await ffSetStatus(d.ffaCancel, 'cancelled'); await ffAdminRenderAll(); showToast('Transfert annulé'); }
+    else if(isAdmin() && d.ffaView){ adminState.tab = 'bilan'; await adminOpenUser(d.ffaView); }
+    else if(isAdmin() && d.ffaReload){ await ffAdminRenderAll(); }
+  }catch(err){ console.error(err); showToast('Échec : ' + (err.message || err)); }
+  finally{ el.disabled = false; }
+});
+
+/* Vide l'écran si le profil affiché disparaît */
+async function handleDeleteProfileSilent(){
+  state.currentId = null; state.profile = null; state.history = [];
+  clearForm();
+  document.getElementById('profilSummary').style.display = 'none';
+  document.getElementById('deleteProfileBtn').style.display = 'none';
+  renderNutrition(null, null); renderTraining(null);
+  renderSuivi(null, []); state.perf = emptyPerf(); renderPerf();
+}
+
+/* ---------- côté admin ---------- */
+function ffTargetSelect(ownerUid, pid){
+  const users = (adminState.users || []).filter(u=> u.uid !== ownerUid && u.email);
+  return `<select id="ffaTarget_${pid}" style="max-width:220px;"><option value="">— compte destinataire —</option>${users.map(u=> `<option value="${escapeHtml(u.email)}">${escapeHtml(u.displayName || u.email)} (${escapeHtml(u.email)})</option>`).join('')}</select>`;
+}
+function ffAdminProfileActions(profile){
+  const uid = adminState.viewUid, k = uid + '|' + profile.id;
+  return `<div class="admin-bar" style="margin-bottom:8px;">
+    ${ffTargetSelect(uid, profile.id)}
+    <button type="button" class="${ffBtn}" data-ffa-copy="${k}">Copier vers</button>
+    <button type="button" class="${ffBtn}" data-ffa-send="${k}">Envoyer vers</button>
+    <button type="button" class="btn btn-danger btn-sm" data-ffa-del="${k}">Supprimer ce profil</button>
+  </div>`;
+}
+
+async function ffAdminRenderAll(){
+  const box = document.getElementById('ffAdminAll');
+  if(!box || !isAdmin()) return;
+  box.innerHTML = '<div class="sheet"><p class="sub">Chargement de tous les profils…</p></div>';
+  try{
+    if(!adminState.users || !adminState.users.length) adminState.users = await adminLoadUsers();
+    const users = adminState.users;
+    const lists = await Promise.all(users.map(u=> fsListValues(u.uid, 'profile:').catch(()=> [])));
+    const rows = [];
+    users.forEach((u, i)=> lists[i].forEach(r=>{ const p = parseJ(r.value, null); if(p) rows.push({u, p}); }));
+    rows.sort((a, b)=> (b.p.createdAt || 0) - (a.p.createdAt || 0));
+    let tr = [];
+    try{ tr = (await FB.getDocs(FB.collection(FB.db, 'transfers'))).docs.map(d=> Object.assign({id: d.id}, d.data())).filter(t=> t.status === 'pending'); }catch(e){ console.error(e); }
+    box.innerHTML = `<div class="sheet">
+      <div class="sheet-tab" style="background:var(--g-jambes); color:#fff;">Admin</div>
+      <h2>Tous les profils créés (${rows.length})</h2>
+      <p class="sub">Supprime, copie ou envoie n'importe quel profil vers un autre compte. Le destinataire doit accepter.</p>
+      <div class="admin-bar"><button type="button" class="${ffBtn}" data-ffa-reload="1">↻ Actualiser</button></div>
+      ${rows.length ? `<div class="admin-table-wrap"><table class="admin-table" style="min-width:900px;">
+        <thead><tr><th>Profil</th><th>Compte</th><th>Créé le</th><th>Destinataire</th><th>Actions</th></tr></thead><tbody>
+        ${rows.map(({u, p})=>{ const k = u.uid + '|' + p.id; return `<tr><td><b>${escapeHtml(p.prenom || 'Profil')}</b><small>${FF_OBJ[p.objectif] || ''}</small></td>
+          <td>${escapeHtml(u.displayName || '')}<small>${escapeHtml(u.email || '')}</small></td><td>${ffDate(p.createdAt)}</td>
+          <td>${ffTargetSelect(u.uid, p.id)}</td>
+          <td style="white-space:nowrap;"><button type="button" class="${ffBtn}" data-ffa-view="${u.uid}">Voir</button>
+          <button type="button" class="${ffBtn}" data-ffa-copy="${k}">Copier</button>
+          <button type="button" class="${ffBtn}" data-ffa-send="${k}">Envoyer</button>
+          <button type="button" class="btn btn-danger btn-sm" data-ffa-del="${k}">Supprimer</button></td></tr>`; }).join('')}
+        </tbody></table></div>` : '<p class="empty-note">Aucun profil créé.</p>'}
+      ${tr.length ? `<h3 style="margin-top:16px;">Transferts en attente</h3>${tr.map(t=> `<p class="sub" style="margin-top:6px;">${escapeHtml(t.profileName)} : ${escapeHtml(t.fromEmail)} → ${escapeHtml(t.toEmail)} (${t.mode === 'send' ? 'envoi' : 'copie'}) <button type="button" class="${ffBtn}" data-ffa-cancel="${t.id}">Annuler</button></p>`).join('')}` : ''}
+    </div>`;
+  }catch(err){
+    console.error(err);
+    box.innerHTML = `<div class="sheet"><div class="warn-box">⚠️ Lecture impossible : ${escapeHtml(err.message || String(err))}</div></div>`;
+  }
+}
+
 </script>
 <script type="module">
 const firebaseConfig = {
